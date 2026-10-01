@@ -1,15 +1,11 @@
 {
-  "work_id": "TCC-QWEN-ASR-001",
+  "work_id": "TCC-QWEN-ASR-002",
   "state": "OFFICIAL_QWEN_API_INTEGRATED_AWAITING_REAL_FIXTURES_AND_RUNTIME",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
-  "authoritative_plan": "TCC_EXECUTION_PLAN.json",
+  "authoritative_plan": "TCC_EXECUTION_PLAN_v2.json",
   "executor": "tcc_runner.py",
   "completed": [
     "repository initialized",
-    "one-pass TCC execution plan fixed",
-    "acceptance gates fixed",
-    "branch logic fixed",
-    "evidence contract fixed",
     "one-pass fail-closed executor implemented",
     "fixture manifest template added",
     "sandbox fail-closed unit test passed",
@@ -17,16 +13,17 @@
     "official Qwen3ASRModel.from_pretrained offline API integrated",
     "official Qwen3ASRModel.LLM streaming API integrated",
     "first-partial and release-to-final timing integrated",
-    "Python runtime gate corrected to >=3.9",
-    "offline and streaming bootstrap script added",
-    "one-command TCC run script added"
+    "Python gate corrected to >=3.9",
+    "offline/streaming bootstrap added",
+    "one-command TCC run added",
+    "TCC plan v2 fixed"
   ],
   "current_blockers": [
-    "real frozen English/Japanese/code-switch/technical audio fixtures are not yet present in the repository",
-    "Qwen3-ASR-1.7B package/model runtime is not available in the current ChatGPT sandbox",
-    "vLLM streaming runtime is not available in the current ChatGPT sandbox"
+    "real frozen English/Japanese/code-switch/technical audio fixtures missing",
+    "Qwen3-ASR runtime unavailable in current ChatGPT sandbox",
+    "vLLM streaming runtime unavailable in current ChatGPT sandbox"
   ],
-  "next_action": "Populate immutable real fixtures with checksums, run bootstrap_qwen.sh streaming in a Qwen/vLLM-capable runtime, then execute run_tcc.sh and accept validation_result.json without ad-hoc parameter changes.",
-  "runtime_policy": "Python >=3.9 supported; Python 3.12 preferred but not mandatory.",
-  "change_control": "Any change to AC thresholds, model choice, fixture definitions, or branch logic requires an explicit new plan revision before execution."
+  "next_action": "Populate frozen fixtures with SHA256, run bootstrap_qwen.sh streaming in a Qwen/vLLM-capable runtime, then run_tcc.sh.",
+  "runtime_policy": "Python >=3.9 supported; Python 3.12 preferred.",
+  "change_control": "AC/model/fixture/branch changes require a new plan revision before execution."
 }
