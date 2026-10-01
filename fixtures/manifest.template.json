@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "frozen": true,
+  "note": "Replace placeholder entries with immutable real audio + reference text before execution. Missing files intentionally BLOCK execution.",
+  "fixtures": [
+    {"id":"en-general-001","audio":"en-general-001.wav","reference":"PLACEHOLDER","language":"en","suite":"general"},
+    {"id":"ja-general-001","audio":"ja-general-001.wav","reference":"プレースホルダー","language":"ja","suite":"general"},
+    {"id":"enja-code-001","audio":"enja-code-001.wav","reference":"PLACEHOLDER","language":"en-ja-code-switch","suite":"code_switch"},
+    {"id":"tech-001","audio":"tech-001.wav","reference":"Qwen3-ASR","language":"en","suite":"technical"}
+  ]
+}
