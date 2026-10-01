@@ -1,16 +1,26 @@
 {
   "work_id": "TCC-QWEN-ASR-001",
-  "state": "READY_FOR_EXECUTOR_IMPLEMENTATION",
+  "state": "EXECUTOR_IMPLEMENTED_AWAITING_REAL_FIXTURES_AND_RUNTIME",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "authoritative_plan": "TCC_EXECUTION_PLAN.json",
+  "executor": "tcc_runner.py",
   "completed": [
     "repository initialized",
     "runtime readiness check added",
     "one-pass TCC execution plan fixed",
     "acceptance gates fixed",
     "branch logic fixed",
-    "evidence contract fixed"
+    "evidence contract fixed",
+    "one-pass fail-closed executor implemented",
+    "fixture manifest template added",
+    "sandbox fail-closed unit test passed",
+    "mandatory evidence generation verified"
   ],
-  "next_action": "Implement the executor against the fixed plan without changing thresholds or branching rules.",
+  "current_blockers": [
+    "real frozen English/Japanese/code-switch/technical audio fixtures are not yet present in the repository",
+    "Qwen3-ASR-1.7B package/model runtime is not available in the current ChatGPT sandbox",
+    "vLLM streaming runtime is not available in the current ChatGPT sandbox"
+  ],
+  "next_action": "Populate immutable real fixtures with checksums, run tcc_runner.py in a Python 3.12 Qwen/vLLM-capable runtime, then accept the single validation_result.json disposition without ad-hoc parameter changes.",
   "change_control": "Any change to AC thresholds, model choice, fixture definitions, or branch logic requires an explicit new plan revision before execution."
 }
