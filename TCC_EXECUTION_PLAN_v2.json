@@ -1,0 +1,67 @@
+{
+  "plan_id": "TCC-QWEN-ASR-002",
+  "mode": "ONE_PASS_FAIL_CLOSED",
+  "objective": "Connect Qwen3-ASR-1.7B and evaluate English, Japanese, EN/JA code-switch, technical-term accuracy, streaming latency, resources, context effects, and semantic integrity in one pass.",
+  "primary_model": "Qwen/Qwen3-ASR-1.7B",
+  "runtime": {
+    "python": ">=3.9",
+    "preferred_python": "3.12",
+    "offline_backend": "Qwen3ASRModel.from_pretrained / transformers",
+    "streaming_backend": "Qwen3ASRModel.LLM / vLLM"
+  },
+  "preconditions": [
+    {"id":"P1","condition":"Python >=3.9","on_fail":"BRANCH_ENV_BLOCKED"},
+    {"id":"P2","condition":"qwen-asr importable","on_fail":"BRANCH_PACKAGE_BLOCKED"},
+    {"id":"P3","condition":"vLLM importable for streaming ACs","on_fail":"BRANCH_STREAMING_BLOCKED"},
+    {"id":"P4","condition":"model weights resolvable","on_fail":"BRANCH_MODEL_BLOCKED"},
+    {"id":"P5","condition":"frozen audio fixtures and checksums valid","on_fail":"BRANCH_FIXTURE_BLOCKED"}
+  ],
+  "execution_order": [
+    "runtime_validation",
+    "fixture_validation",
+    "offline_model_smoke",
+    "english_accuracy",
+    "japanese_accuracy",
+    "code_switch_accuracy",
+    "technical_term_accuracy",
+    "streaming_latency",
+    "resource_metrics",
+    "context_and_normalization_ablation",
+    "semantic_integrity",
+    "tcc_disposition"
+  ],
+  "acceptance_gates": [
+    {"id":"AC1","metric":"english_wer","pass":"<=6.23%","stretch":"<=5.5%"},
+    {"id":"AC2","metric":"japanese_cer_vs_aqua","pass":"ours<=aqua+0.5 percentage points"},
+    {"id":"AC3","metric":"technical_key_term_accuracy","pass":">=95%","target":">=97%"},
+    {"id":"AC4","metric":"dictionary_target_recall","pass":">=98%"},
+    {"id":"AC5","metric":"false_bias_rate","pass":"<=1%"},
+    {"id":"AC6","metric":"release_to_final_p50","pass":"<=450ms"},
+    {"id":"AC7","metric":"release_to_final_p95","pass":"<=700ms"},
+    {"id":"AC8","metric":"semantic_critical_violations","pass":"=0"},
+    {"id":"AC9","metric":"context_false_substitution_delta","pass":"<=+1 percentage point"}
+  ],
+  "branches": {
+    "BRANCH_ENV_BLOCKED":"BLOCKED; no code modification",
+    "BRANCH_PACKAGE_BLOCKED":"BLOCKED; no alternate ASR substitution",
+    "BRANCH_STREAMING_BLOCKED":"complete offline suites; streaming ACs BLOCKED",
+    "BRANCH_MODEL_BLOCKED":"BLOCKED; retain model-load evidence",
+    "BRANCH_ACCURACY_FAIL":"run only predefined dictionary/context/normalization ablations; raw ASR fail => REFRAME",
+    "BRANCH_LATENCY_FAIL":"profile runtime stages; model unchanged until attribution complete",
+    "BRANCH_CONTEXT_HARM":"disable offending context source and rerun paired ablation once",
+    "BRANCH_SEMANTIC_FAIL":"REJECT normalization policy",
+    "BRANCH_PASS":"freeze hashes and accept Qwen MVP baseline"
+  },
+  "evidence_contract": {
+    "required_files": ["runtime_snapshot.json","fixture_manifest.json","accuracy_metrics.json","latency_metrics.json","resource_metrics.json","ablation_summary.json","semantic_integrity.json","validation_result.json","current_work_state.json"],
+    "fail_closed": true
+  },
+  "rules": [
+    "No threshold changes after results.",
+    "No fixture-specific tuning.",
+    "No model swap unless branch permits it.",
+    "No subjective-only PASS.",
+    "Environment failure is BLOCKED, not model failure.",
+    "All reruns reuse frozen fixtures and create new evidence."
+  ]
+}
