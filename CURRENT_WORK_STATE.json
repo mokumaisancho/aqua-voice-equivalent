@@ -1,0 +1,16 @@
+{
+  "work_id": "TCC-QWEN-ASR-001",
+  "state": "READY_FOR_EXECUTOR_IMPLEMENTATION",
+  "primary_model": "Qwen/Qwen3-ASR-1.7B",
+  "authoritative_plan": "TCC_EXECUTION_PLAN.json",
+  "completed": [
+    "repository initialized",
+    "runtime readiness check added",
+    "one-pass TCC execution plan fixed",
+    "acceptance gates fixed",
+    "branch logic fixed",
+    "evidence contract fixed"
+  ],
+  "next_action": "Implement the executor against the fixed plan without changing thresholds or branching rules.",
+  "change_control": "Any change to AC thresholds, model choice, fixture definitions, or branch logic requires an explicit new plan revision before execution."
+}
