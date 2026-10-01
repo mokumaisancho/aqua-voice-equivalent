@@ -1,0 +1,133 @@
+{
+  "plan_id": "TCC-QWEN-ASR-001",
+  "mode": "ONE_PASS_FAIL_CLOSED",
+  "objective": "Connect Qwen3-ASR-1.7B, run English/Japanese/code-switch accuracy and end-to-end latency evaluation, and produce authoritative evidence without iterative ad-hoc correction.",
+  "primary_model": "Qwen/Qwen3-ASR-1.7B",
+  "scope": {
+    "languages": ["en", "ja", "en-ja-code-switch"],
+    "metrics": ["WER", "CER", "key_term_accuracy", "release_to_final_latency", "first_partial_latency", "resource_usage", "semantic_integrity"],
+    "non_goals": ["model fine-tuning", "UI polish", "alternative ASR model selection unless a hard branch trigger fires"]
+  },
+  "preconditions": [
+    {"id":"P1","condition":"Python 3.12 runtime available","on_fail":"BRANCH_ENV_BLOCKED"},
+    {"id":"P2","condition":"qwen-asr package importable","on_fail":"BRANCH_PACKAGE_BLOCKED"},
+    {"id":"P3","condition":"vLLM importable for streaming tests","on_fail":"BRANCH_STREAMING_BLOCKED"},
+    {"id":"P4","condition":"model weights resolvable from local cache or approved source","on_fail":"BRANCH_MODEL_BLOCKED"},
+    {"id":"P5","condition":"test audio fixtures and references are present and checksummed","on_fail":"BRANCH_FIXTURE_BLOCKED"}
+  ],
+  "execution_phases": [
+    {
+      "id":"E1",
+      "name":"runtime_validation",
+      "actions":["capture Python/package/runtime versions","capture CPU/GPU/RAM availability","verify model/package imports","write runtime_snapshot.json"],
+      "exit":"all required runtime dependencies for selected test mode are satisfied"
+    },
+    {
+      "id":"E2",
+      "name":"model_smoke",
+      "actions":["load Qwen3-ASR-1.7B","transcribe one English fixture","transcribe one Japanese fixture","verify non-empty output and timestamps"],
+      "exit":"model loads and produces valid transcript for both languages"
+    },
+    {
+      "id":"E3",
+      "name":"accuracy_suite",
+      "actions":["run frozen English set","run frozen Japanese set","run frozen EN/JA code-switch set","run technical-term set","calculate WER/CER/key-term accuracy"],
+      "exit":"accuracy_metrics.json produced from immutable references"
+    },
+    {
+      "id":"E4",
+      "name":"latency_suite",
+      "actions":["run warm-up","run >=100 timed utterances where feasible","measure first partial and release-to-final latency","record p50/p95/p99","record cold-start separately"],
+      "exit":"latency_metrics.json produced with monotonic timestamps"
+    },
+    {
+      "id":"E5",
+      "name":"resource_suite",
+      "actions":["measure peak RSS","measure CPU/GPU utilization where exposed","measure model load time","measure real-time factor"],
+      "exit":"resource_metrics.json produced"
+    },
+    {
+      "id":"E6",
+      "name":"context_and_normalization_suite",
+      "actions":["run dictionary on/off ablation","run context on/off ablation","run normalization on/off ablation","measure false substitutions","check semantic mutation"],
+      "exit":"ablation_summary.json and semantic_integrity.json produced"
+    },
+    {
+      "id":"E7",
+      "name":"tcc_disposition",
+      "actions":["evaluate all ACs","apply branch logic","write validation_result.json","write current_work_state.json","emit PASS/BLOCKED/REFRAME/REJECT"],
+      "exit":"single authoritative disposition generated"
+    }
+  ],
+  "acceptance_gates": [
+    {"id":"AC1","metric":"english_wer","pass":"<= 6.23%","stretch":"<= 5.5%"},
+    {"id":"AC2","metric":"japanese_cer_vs_aqua","pass":"ours <= aqua + 0.5 percentage points"},
+    {"id":"AC3","metric":"technical_key_term_accuracy","pass":">= 95%","target":">= 97%"},
+    {"id":"AC4","metric":"dictionary_target_recall","pass":">= 98%"},
+    {"id":"AC5","metric":"false_bias_rate","pass":"<= 1%"},
+    {"id":"AC6","metric":"release_to_final_p50","pass":"<= 450 ms"},
+    {"id":"AC7","metric":"release_to_final_p95","pass":"<= 700 ms"},
+    {"id":"AC8","metric":"semantic_critical_violations","pass":"= 0"},
+    {"id":"AC9","metric":"context_false_substitution_delta","pass":"<= +1 percentage point"}
+  ],
+  "branch_logic": [
+    {
+      "branch":"BRANCH_ENV_BLOCKED",
+      "trigger":"Python 3.12 unavailable",
+      "action":"Do not modify application code. Produce BLOCKED with exact runtime mismatch and required environment delta."
+    },
+    {
+      "branch":"BRANCH_PACKAGE_BLOCKED",
+      "trigger":"qwen-asr unavailable",
+      "action":"Do not substitute another ASR. Produce BLOCKED with dependency inventory and install manifest."
+    },
+    {
+      "branch":"BRANCH_STREAMING_BLOCKED",
+      "trigger":"offline works but vLLM streaming runtime is unavailable",
+      "action":"Complete offline accuracy/resource suites, mark streaming latency ACs BLOCKED, and do not claim streaming PASS."
+    },
+    {
+      "branch":"BRANCH_MODEL_BLOCKED",
+      "trigger":"weights unavailable or model load fails before inference",
+      "action":"Classify as infrastructure/model-loading failure, preserve logs, no fallback model."
+    },
+    {
+      "branch":"BRANCH_ACCURACY_FAIL",
+      "trigger":"AC1, AC2 or AC3 fails",
+      "action":"Run predefined ablations only: dictionary/context/normalization. If raw ASR remains below threshold, disposition=REFRAME and open alternative-model comparison gate."
+    },
+    {
+      "branch":"BRANCH_LATENCY_FAIL",
+      "trigger":"AC6 or AC7 fails while accuracy passes",
+      "action":"Keep Qwen as accuracy baseline; profile load/inference/normalization/insertion stages. Permit optimization of runtime path only. Do not change model until stage attribution is complete."
+    },
+    {
+      "branch":"BRANCH_CONTEXT_HARM",
+      "trigger":"AC5 or AC9 fails",
+      "action":"Disable offending context source and re-run the predefined paired ablation once. If harm persists, fail that feature while preserving base dictation path."
+    },
+    {
+      "branch":"BRANCH_SEMANTIC_FAIL",
+      "trigger":"AC8 fails",
+      "action":"REJECT normalization policy immediately; raw ASR remains testable but final-text feature cannot PASS."
+    },
+    {
+      "branch":"BRANCH_PASS",
+      "trigger":"all hard P0 ACs pass or non-applicable ACs are explicitly BLOCKED by environment with no false PASS",
+      "action":"Freeze baseline hashes and mark Qwen MVP baseline accepted."
+    }
+  ],
+  "evidence_contract": {
+    "required_files":["runtime_snapshot.json","fixture_manifest.json","accuracy_metrics.json","latency_metrics.json","resource_metrics.json","ablation_summary.json","semantic_integrity.json","validation_result.json","current_work_state.json"],
+    "required_metadata":["model_id","model_revision_or_hash","package_versions","python_version","fixture_hashes","scorer_version","timestamp","host_capabilities"],
+    "fail_closed":"Any missing mandatory evidence prevents CLOSED/PASS."
+  },
+  "tcc_rules": [
+    "No ad-hoc parameter changes between fixtures.",
+    "No model swap unless branch trigger permits it.",
+    "No threshold changes after seeing results.",
+    "No PASS from subjective listening alone.",
+    "Environment failures are BLOCKED, not model failures.",
+    "All reruns must reuse frozen fixtures and record a new evidence set."
+  ]
+}
