@@ -21,7 +21,7 @@ def score(t,a):
  nums=set(re.findall(r'\d+',ts)); sc+=5*len(nums & set(re.findall(r'\d+',ast))); return sc
 def main():
  if not ARCH.exists():
-  print(json.dumps({'status':'SKIP','reason':'JECS_ZIP missing','expected':str(ARCH)})); return 0
+  print(json.dumps({'status':'SKIP','reason':'JECS_ZIP missing','expected':str(ARCH)})); return 3
  with zipfile.ZipFile(ARCH) as z:
   names=z.namelist(); aud=[n for n in names if Path(n).suffix.lower() in AUDIO]; txt=[n for n in names if Path(n).suffix.lower() in TEXT]; cand=[]
   for tn in txt:
