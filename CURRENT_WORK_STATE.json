@@ -1,29 +1,30 @@
 {
-  "work_id": "TCC-QWEN-ASR-002",
-  "state": "OFFICIAL_QWEN_API_INTEGRATED_AWAITING_REAL_FIXTURES_AND_RUNTIME",
+  "work_id": "TCC-QWEN-ASR-003",
+  "state": "PUBLIC_FIXTURES_AUTOMATED_RUNTIME_EXECUTION_PENDING",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "authoritative_plan": "TCC_EXECUTION_PLAN_v2.json",
   "executor": "tcc_runner.py",
   "completed": [
     "repository initialized",
     "one-pass fail-closed executor implemented",
-    "fixture manifest template added",
     "sandbox fail-closed unit test passed",
-    "mandatory evidence generation verified",
-    "official Qwen3ASRModel.from_pretrained offline API integrated",
-    "official Qwen3ASRModel.LLM streaming API integrated",
+    "official Qwen offline and streaming APIs integrated",
     "first-partial and release-to-final timing integrated",
     "Python gate corrected to >=3.9",
     "offline/streaming bootstrap added",
     "one-command TCC run added",
-    "TCC plan v2 fixed"
+    "public FLEURS English/Japanese fixture sources fixed",
+    "technical English/Japanese FLEURS samples fixed",
+    "JECS code-switch corpus source fixed",
+    "fixture downloader and SHA256 freezer added",
+    "run_tcc.sh now fetches and freezes public fixtures automatically"
   ],
   "current_blockers": [
-    "real frozen English/Japanese/code-switch/technical audio fixtures missing",
     "Qwen3-ASR runtime unavailable in current ChatGPT sandbox",
-    "vLLM streaming runtime unavailable in current ChatGPT sandbox"
+    "vLLM streaming runtime unavailable in current ChatGPT sandbox",
+    "JECS archive extraction mapping not yet frozen; audio is not redistributed because source terms restrict redistribution"
   ],
-  "next_action": "Populate frozen fixtures with SHA256, run bootstrap_qwen.sh streaming in a Qwen/vLLM-capable runtime, then run_tcc.sh.",
+  "next_action": "Run bootstrap_qwen.sh streaming then run_tcc.sh in a Qwen/vLLM-capable runtime. FLEURS fixtures self-download and freeze automatically. Resolve JECS exact paired file from the official archive as an additional code-switch fixture without committing its audio.",
   "runtime_policy": "Python >=3.9 supported; Python 3.12 preferred.",
   "change_control": "AC/model/fixture/branch changes require a new plan revision before execution."
 }
