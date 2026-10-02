@@ -7,6 +7,7 @@ import unicodedata
 from pathlib import Path
 
 MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
+MODEL_REVISION = "7278e1e70fe206f11671096ffdd38061171dd6e5"
 
 
 def norm(s):
@@ -16,8 +17,6 @@ def norm(s):
 def contains_term(text, term):
     t = norm(term)
     h = norm(text)
-    # Exact ASCII-token/phrase boundaries without treating adjacent Japanese
-    # characters as part of an ASCII identifier.
     return re.search(r"(?<![A-Za-z0-9])" + re.escape(t) + r"(?![A-Za-z0-9])", h) is not None
 
 
@@ -35,7 +34,7 @@ def edit_counts(ref, hyp, lang):
     h = units(hyp, lang)
     n, m = len(r), len(h)
     dp = [[None] * (m + 1) for _ in range(n + 1)]
-    dp[0][0] = (0, 0, 0, 0)  # cost, sub, ins, del
+    dp[0][0] = (0, 0, 0, 0)
     for i in range(1, n + 1):
         c, s, ins, d = dp[i - 1][0]
         dp[i][0] = (c + 1, s, ins, d + 1)
@@ -89,7 +88,14 @@ def main():
     by_id = {x["id"]: x for x in man["fixtures"]}
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    model = Qwen3ASRModel.from_pretrained(MODEL_ID, dtype=dtype, device_map=device, max_inference_batch_size=1, max_new_tokens=256)
+    model = Qwen3ASRModel.from_pretrained(
+        MODEL_ID,
+        revision=MODEL_REVISION,
+        dtype=dtype,
+        device_map=device,
+        max_inference_batch_size=1,
+        max_new_tokens=256,
+    )
 
     rows = []
     target_total = target_hit = 0
@@ -109,7 +115,7 @@ def main():
             for t in targets:
                 target_total += 1
                 target_hit += int(contains_term(treated, t))
-            rows.append({"id": c["id"], "fixture_id": fx["id"], "mode": "dictionary", "base": base, "treated": treated, "targets": targets})
+            rows.append({"id": c["id"], "fixture_id": fx["id"], "mode": "dictionary", "base": base, "treated": treated, "targets": targets, "model_revision": MODEL_REVISION})
 
         elif c["id"].startswith("false-bias"):
             forbidden = c["forbidden_injection"]
@@ -120,7 +126,7 @@ def main():
                 base_has = contains_term(base, t)
                 treated_has = contains_term(treated, t)
                 newly_induced += int((not base_has) and treated_has)
-            rows.append({"id": c["id"], "fixture_id": fx["id"], "mode": "false_bias", "base": base, "treated": treated, "forbidden": forbidden})
+            rows.append({"id": c["id"], "fixture_id": fx["id"], "mode": "false_bias", "base": base, "treated": treated, "forbidden": forbidden, "model_revision": MODEL_REVISION})
 
         else:
             treated = tx(model, fx, "Active application context: preserve the speaker's wording and language; do not invent facts.")
@@ -133,6 +139,7 @@ def main():
                 "base": base, "treated": treated,
                 "base_edit": b, "context_edit": t,
                 "context_false_substitution_delta_pp": delta_pp,
+                "model_revision": MODEL_REVISION,
             })
 
     out = Path(args.out)
@@ -147,6 +154,8 @@ def main():
         "false_bias_definition": "newly induced forbidden target in treated output when absent from paired base output",
         "context_harm_definition": "paired substitution-rate delta, percentage points",
         "pairs": len(rows),
+        "model_id": MODEL_ID,
+        "model_revision": MODEL_REVISION,
     }
     Path("evidence/context_dictionary_metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(metrics, ensure_ascii=False))
