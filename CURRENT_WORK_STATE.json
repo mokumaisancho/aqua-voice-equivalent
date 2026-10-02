@@ -1,13 +1,12 @@
 {
-  "work_id": "TCC-QWEN-ASR-003",
-  "state": "PUBLIC_FIXTURES_AUTOMATED_RUNTIME_EXECUTION_PENDING",
+  "work_id": "TCC-QWEN-ASR-004",
+  "state": "FIXTURE_REFERENCE_VERIFICATION_HARDENED_RUNTIME_EXECUTION_PENDING",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "authoritative_plan": "TCC_EXECUTION_PLAN_v2.json",
   "executor": "tcc_runner.py",
   "completed": [
     "repository initialized",
     "one-pass fail-closed executor implemented",
-    "sandbox fail-closed unit test passed",
     "official Qwen offline and streaming APIs integrated",
     "first-partial and release-to-final timing integrated",
     "Python gate corrected to >=3.9",
@@ -15,16 +14,20 @@
     "one-command TCC run added",
     "public FLEURS English/Japanese fixture sources fixed",
     "technical English/Japanese FLEURS samples fixed",
-    "JECS code-switch corpus source fixed",
+    "JECS code-switch source fixed",
     "fixture downloader and SHA256 freezer added",
-    "run_tcc.sh now fetches and freezes public fixtures automatically"
+    "FLEURS authoritative transcript is now fetched and source_id/reference equality verified before audio acceptance",
+    "RIFF/WAVE header validation added",
+    "fixture catalog integrity self-test added and run_tcc.sh gated on it",
+    "English FLEURS en_us source revision 65fb4cd independently confirmed against repository history",
+    "JECS archive extraction is automated when a local archive is available; ambiguous pairing fails closed"
   ],
   "current_blockers": [
     "Qwen3-ASR runtime unavailable in current ChatGPT sandbox",
     "vLLM streaming runtime unavailable in current ChatGPT sandbox",
-    "JECS archive extraction mapping not yet frozen; audio is not redistributed because source terms restrict redistribution"
+    "JECS archive exceeds connected Drive download limit; exact code-switch audio pairing is therefore resolved in the execution environment, not committed"
   ],
-  "next_action": "Run bootstrap_qwen.sh streaming then run_tcc.sh in a Qwen/vLLM-capable runtime. FLEURS fixtures self-download and freeze automatically. Resolve JECS exact paired file from the official archive as an additional code-switch fixture without committing its audio.",
+  "next_action": "Execute run_tcc.sh in a Qwen/vLLM-capable runtime. It now self-tests catalog integrity, verifies authoritative FLEURS transcripts, freezes SHA256, extracts JECS when available, then runs preflight and the full TCC evaluation without ad-hoc correction.",
   "runtime_policy": "Python >=3.9 supported; Python 3.12 preferred.",
   "change_control": "AC/model/fixture/branch changes require a new plan revision before execution."
 }
