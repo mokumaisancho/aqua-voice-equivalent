@@ -1,32 +1,40 @@
 {
-  "work_id": "TCC-QWEN-ASR-006",
-  "state": "ONE_PASS_TCC_HARDENED_EXECUTION_ENV_BLOCKED",
+  "work_id": "TCC-QWEN-ASR-007",
+  "state": "SPLIT_RUNTIME_TCC_READY_EXECUTION_ENV_BLOCKED",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "authoritative_plan": "TCC_EXECUTION_PLAN_v3.json",
   "entrypoint": "run_tcc.sh",
   "orchestrator": "tcc_orchestrator.py",
   "executor": "tcc_runner.py",
+  "split_runtime": {
+    "inference_only_runner": "run_qwen_inference_only.py",
+    "external_result_evaluator": "evaluate_external_results.py",
+    "contract_test": "test_external_results.py",
+    "purpose": "Allow Qwen inference to run on any capable external runtime while frozen fixture scoring, AC evaluation, and fail-closed TCC disposition remain reproducible elsewhere.",
+    "result_files": [
+      "offline_predictions.jsonl",
+      "streaming_predictions.jsonl"
+    ],
+    "merge_key": "fixture id + mode",
+    "policy": "No AC threshold or fixture mutation when importing external results."
+  },
   "completed": [
     "executable TCC state machine v3 created",
-    "all major branches fixed before execution",
-    "retry budgets fixed before execution",
+    "all major branches and retry budgets fixed before execution",
     "public fixture acquisition and transcript verification integrated",
-    "JECS failure made nonfatal for independent EN/JA suites",
-    "JECS missing archive now returns nonzero skip code so code-switch cannot falsely pass",
+    "JECS unavailable path made explicitly partial and nonfatal for independent EN/JA suites",
     "dependency bootstrap integrated",
-    "vLLM attempt restricted to supported Linux/CUDA runtime",
     "offline suite continues when streaming backend is blocked",
     "run-scoped evidence archival added",
-    "evidence completeness now reads the authoritative v3 evidence contract",
-    "stage_events.jsonl is enforced before PASS",
-    "orchestration_result.json is emitted by finalization and included in the authoritative contract",
-    "PASS prohibited when mandatory evidence is missing",
-    "plan contract self-test passed in GPT sandbox",
-    "fixture contract self-test passed in GPT sandbox",
-    "orchestrator invariant test passed in GPT sandbox",
-    "run_tcc.sh now gates execution on plan and orchestrator invariant tests",
-    "external Hugging Face job execution attempted and classified as environment/payment blocked",
-    "GPT sandbox direct GitHub/network execution attempted and classified as environment/network blocked"
+    "mandatory evidence completeness enforced from v3 plan",
+    "plan, fixture, and orchestrator invariant tests passed in GPT sandbox",
+    "Hugging Face Jobs execution attempted and classified BLOCKED_ENV due to 402 payment requirement",
+    "GPT sandbox network execution attempted and classified BLOCKED_ENV due to outbound DNS restriction",
+    "Qwen inference-only runner added for external capable runtimes",
+    "external result evaluator added with frozen WER/CER/technical/latency AC scoring",
+    "offline and streaming results can be merged by fixture id + mode",
+    "external result contract self-test passed with synthetic EN/JA/technical fixtures",
+    "Japanese Aqua paired-comparison AC remains fail-closed when Aqua evidence is absent"
   ],
   "branch_policy": {
     "plan_invalid": "BLOCKED_PLAN",
@@ -41,6 +49,7 @@
     "context_harm": "REFRAME_CONTEXT after one paired rerun",
     "semantic_mutation": "REJECT_SEMANTIC",
     "evidence_missing": "BLOCKED_EVIDENCE",
+    "external_results_incomplete": "PARTIAL_EXTERNAL_EVIDENCE_BLOCKED",
     "all_hard_AC_pass": "PASS"
   },
   "execution_attempts": [
@@ -52,12 +61,17 @@
     {
       "environment": "GPT sandbox/container",
       "result": "BLOCKED_ENV",
-      "detail": "external DNS unavailable; github.com could not be resolved"
+      "detail": "external DNS unavailable"
     }
   ],
   "manual_intervention_policy": "No ad-hoc threshold, fixture, model, or parameter edits during a run. Any policy change requires a new plan revision before the next run.",
-  "execution": "./run_tcc.sh",
+  "execution": {
+    "full_runtime": "./run_tcc.sh",
+    "external_offline": "python run_qwen_inference_only.py --out offline_predictions.jsonl",
+    "external_streaming": "python run_qwen_inference_only.py --streaming --out streaming_predictions.jsonl",
+    "evaluate_external": "python evaluate_external_results.py --results offline_predictions.jsonl streaming_predictions.jsonl"
+  },
   "closure_rule": "CLOSED only on PASS with complete mandatory evidence.",
-  "runtime_policy": "Python >=3.9; offline auto-bootstrap; streaming auto-bootstrap only on Linux/CUDA.",
-  "next_executable_condition": "Any runtime with outbound access to the pinned fixtures/model and sufficient Qwen3-ASR resources can run the same ./run_tcc.sh unchanged."
+  "runtime_policy": "Python >=3.9; offline auto-bootstrap; streaming requires vLLM-capable Linux/CUDA runtime.",
+  "next_executable_condition": "Run only Qwen inference in any capable runtime, then feed the produced JSONL files to the frozen evaluator; no code or AC changes required."
 }
