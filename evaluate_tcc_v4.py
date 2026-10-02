@@ -6,6 +6,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+from qwen_model_pin import MODEL_REVISION
+
 ROOT = Path(__file__).resolve().parent
 E = ROOT / "evidence"
 F = ROOT / "fixtures"
@@ -70,12 +72,18 @@ def ac(status, metric=None, value=None, threshold=None, reason=None, evidence=No
     return row
 
 
+def rows_revision_ok(rows):
+    return bool(rows) and {x.get("model_revision") for x in rows} == {MODEL_REVISION}
+
+
 def main() -> int:
     hard = {}
 
     oa = load_json(E / "openasr_result.json")
     if not oa or oa.get("status") != "READY" or oa.get("macro_wer") is None:
         hard["AC-ACC-EN"] = ac("BLOCKED", reason="official pinned OpenASR result missing", evidence="evidence/openasr_result.json")
+    elif oa.get("model_revision") != MODEL_REVISION:
+        hard["AC-ACC-EN"] = ac("BLOCKED", reason="OpenASR evidence revision mismatch", evidence="evidence/openasr_result.json")
     else:
         v = float(oa["macro_wer"])
         hard["AC-ACC-EN"] = ac("PASS" if v <= 0.0623 else "FAIL", "english_wer", v, 0.0623, evidence="evidence/openasr_result.json")
@@ -83,6 +91,8 @@ def main() -> int:
     aq = load_json(E / "aqua_pair_manifest.json")
     if not aq or aq.get("status") != "READY" or aq.get("paired_delta_pp") is None:
         hard["AC-ACC-JA-AQUA"] = ac("BLOCKED", reason="paired Aqua Japanese evidence missing", evidence="evidence/aqua_pair_manifest.json")
+    elif aq.get("qwen_model_revision") != MODEL_REVISION:
+        hard["AC-ACC-JA-AQUA"] = ac("BLOCKED", reason="Aqua paired evidence Qwen revision mismatch", evidence="evidence/aqua_pair_manifest.json")
     else:
         v = float(aq["paired_delta_pp"])
         hard["AC-ACC-JA-AQUA"] = ac("PASS" if v <= 0.5 else "FAIL", "paired_japanese_cer_delta_pp", v, 0.5, evidence="evidence/aqua_pair_manifest.json")
@@ -91,6 +101,8 @@ def main() -> int:
     ann = load_json(F / "technical_term_annotations.json")
     if not preds or not ann or ann.get("status") != "READY" or not ann.get("cases"):
         hard["AC-TECH"] = ac("BLOCKED", reason="technical annotations or offline predictions missing")
+    elif not rows_revision_ok(preds):
+        hard["AC-TECH"] = ac("BLOCKED", reason="offline prediction revision mismatch")
     else:
         by_id = {x.get("id"): str(x.get("hypothesis", "")) for x in preds}
         total = hit = 0
@@ -113,6 +125,9 @@ def main() -> int:
     if not ctx or ctx.get("status") != "READY":
         for aid in ["AC-DICT-RECALL", "AC-DICT-FALSE-BIAS", "AC-CTX-HARM"]:
             hard[aid] = ac("BLOCKED", reason="context/dictionary paired metrics missing", evidence="evidence/context_dictionary_metrics.json")
+    elif ctx.get("model_revision") != MODEL_REVISION:
+        for aid in ["AC-DICT-RECALL", "AC-DICT-FALSE-BIAS", "AC-CTX-HARM"]:
+            hard[aid] = ac("BLOCKED", reason="context/dictionary evidence revision mismatch", evidence="evidence/context_dictionary_metrics.json")
     else:
         dr = ctx.get("dictionary_target_recall")
         fb = ctx.get("false_bias_rate")
@@ -122,14 +137,22 @@ def main() -> int:
         hard["AC-CTX-HARM"] = ac("BLOCKED" if ch is None else ("PASS" if float(ch) <= 1.0 else "FAIL"), "context_false_substitution_delta_pp", ch, 1.0)
 
     lat = load_jsonl(E / "streaming_latency_runs.jsonl")
-    valid = [] if not lat else [
-        x for x in lat
-        if x.get("measured") is True
-        and x.get("real_time_paced") is True
-        and x.get("clock_contract") == "last-frame-arrival-before-final-chunk-inference"
-        and x.get("release_to_final_ms") is not None
-    ]
-    if len(valid) < 100:
+    if lat and not rows_revision_ok(lat):
+        valid = []
+        revision_error = True
+    else:
+        revision_error = False
+        valid = [] if not lat else [
+            x for x in lat
+            if x.get("measured") is True
+            and x.get("real_time_paced") is True
+            and x.get("clock_contract") == "last-frame-arrival-before-final-chunk-inference"
+            and x.get("release_to_final_ms") is not None
+        ]
+    if revision_error:
+        for aid in ["AC-LAT-P50", "AC-LAT-P95"]:
+            hard[aid] = ac("BLOCKED", reason="streaming latency evidence revision mismatch", evidence="evidence/streaming_latency_runs.jsonl")
+    elif len(valid) < 100:
         for aid in ["AC-LAT-P50", "AC-LAT-P95"]:
             hard[aid] = ac("BLOCKED", reason=f"need >=100 valid real-time-paced runs under v4 clock contract; found {len(valid)}", evidence="evidence/streaming_latency_runs.jsonl")
     else:
@@ -142,6 +165,8 @@ def main() -> int:
     sem = load_json(E / "semantic_integrity_metrics.json")
     if not sem or sem.get("status") != "READY" or sem.get("critical_violations") is None or sem.get("finalizer") in {None, "identity"}:
         hard["AC-SEM"] = ac("BLOCKED", reason="semantic integrity requires measured non-identity product finalizer", evidence="evidence/semantic_integrity_metrics.json")
+    elif sem.get("model_revision") != MODEL_REVISION or sem.get("revision_ok") is not True:
+        hard["AC-SEM"] = ac("BLOCKED", reason="semantic evidence revision mismatch", evidence="evidence/semantic_integrity_metrics.json")
     else:
         v = int(sem["critical_violations"])
         hard["AC-SEM"] = ac("PASS" if v == 0 else "FAIL", "semantic_critical_violations", v, 0)
@@ -159,7 +184,7 @@ def main() -> int:
     )
 
     E.mkdir(parents=True, exist_ok=True)
-    (E / "hard_ac_coverage_matrix.json").write_text(json.dumps({"plan_id": PLAN["plan_id"], "hard_ac": hard}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (E / "hard_ac_coverage_matrix.json").write_text(json.dumps({"plan_id": PLAN["plan_id"], "model_revision": MODEL_REVISION, "hard_ac": hard}, ensure_ascii=False, indent=2), encoding="utf-8")
 
     statuses = {k: v["status"] for k, v in hard.items()}
     if statuses.get("AC-SEM") == "FAIL":
@@ -173,7 +198,7 @@ def main() -> int:
     else:
         status, branch = "BLOCKED", "BLOCKED_HARD_AC_NOT_RUN"
 
-    result = {"status": status, "branch": branch, "hard_ac_status": statuses, "product_pass": status == "PASS"}
+    result = {"status": status, "branch": branch, "model_revision": MODEL_REVISION, "hard_ac_status": statuses, "product_pass": status == "PASS"}
     (E / "validation_result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False))
     return 0 if status == "PASS" else 2
