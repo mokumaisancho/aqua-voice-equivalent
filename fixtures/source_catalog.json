@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "policy": "Use public corpora with authoritative transcripts. Pin source revisions when possible. Do not commit JECS audio because redistribution is restricted.",
+  "sources": [
+    {
+      "id": "fleurs-en-general-0000",
+      "suite": "general",
+      "language": "en",
+      "corpus": "FLEURS",
+      "license": "CC-BY-4.0",
+      "audio_url": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/65fb4cd/en_us/en_us_0000.wav",
+      "audio_filename": "en-general-0000.wav",
+      "reference": "however due to the slow communication channels styles in the west could lag behind by 25 to 30 year",
+      "reference_source": "https://huggingface.co/datasets/FluidInference/fleurs-full/blob/main/en_us/en_us.trans.txt",
+      "source_id": "en_us_0000"
+    },
+    {
+      "id": "fleurs-ja-general-0000",
+      "suite": "general",
+      "language": "ja",
+      "corpus": "FLEURS",
+      "license": "CC-BY-4.0",
+      "audio_url": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/4306d89/ja_jp/ja_jp_0000.wav",
+      "audio_filename": "ja-general-0000.wav",
+      "reference": "インターネットで 敵対的環境コース について検索すると おそらく現地企業の住所が出てくるでしょう",
+      "reference_source": "https://huggingface.co/datasets/FluidInference/fleurs-full/blob/main/ja_jp/ja_jp.trans.txt",
+      "source_id": "ja_jp_0000"
+    },
+    {
+      "id": "fleurs-en-tech-0193",
+      "suite": "technical",
+      "language": "en",
+      "corpus": "FLEURS",
+      "license": "CC-BY-4.0",
+      "audio_url": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/65fb4cd/en_us/en_us_0193.wav",
+      "audio_filename": "en-tech-0193.wav",
+      "reference": "this will allow it to be backwards compatible with 802.11a 802.11b and 802.11g provided that the base station has dual radios",
+      "reference_source": "https://huggingface.co/datasets/FluidInference/fleurs-full/blob/main/en_us/en_us.trans.txt",
+      "source_id": "en_us_0193"
+    },
+    {
+      "id": "fleurs-ja-tech-0045",
+      "suite": "technical",
+      "language": "ja",
+      "corpus": "FLEURS",
+      "license": "CC-BY-4.0",
+      "audio_url": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/4306d89/ja_jp/ja_jp_0045.wav",
+      "audio_filename": "ja-tech-0045.wav",
+      "reference": "asusのeee pcは コスト面と機能面で世界に先駆けて発売され 2007 taipei it monthで話題となりました",
+      "reference_source": "https://huggingface.co/datasets/FluidInference/fleurs-full/blob/main/ja_jp/ja_jp.trans.txt",
+      "source_id": "ja_jp_0045"
+    },
+    {
+      "id": "jecs-code-switch-target",
+      "suite": "code_switch",
+      "language": "en-ja-code-switch",
+      "corpus": "JECS Japanese-English code-switching speech corpus",
+      "license": "text CC-BY-3.0; audio non-commercial/personal/research use; redistribution restricted",
+      "archive_page": "https://sites.google.com/site/shinnosuketakamichi/research-topics/jecs_corpus",
+      "archive_url": "https://drive.google.com/file/d/1fkqANFinsVJcD4GXmQXgent9ImyiWUZB/view?usp=sharing",
+      "drive_file_id": "1fkqANFinsVJcD4GXmQXgent9ImyiWUZB",
+      "reference": "それが数々の trouble に見舞われた",
+      "selection_rule": "After official archive extraction, scan authoritative text metadata for exact reference and use its paired audio. Never commit JECS audio to this public repository."
+    }
+  ]
+}
