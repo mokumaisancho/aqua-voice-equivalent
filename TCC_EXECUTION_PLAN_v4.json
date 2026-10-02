@@ -1,12 +1,12 @@
 {
   "plan_id": "TCC-QWEN-ASR-004",
   "mode": "ONE_PASS_DEPENDENCY_AWARE_FAIL_CLOSED",
-  "objective": "Reach a product-conclusive Qwen3-ASR Aqua-equivalence disposition without ad-hoc iterative repair by resolving all known validation dependencies before execution and by treating every hard AC as REQUIRED evidence.",
+  "objective": "Reach a product-conclusive Qwen3-ASR Aqua-equivalence disposition without ad-hoc iterative repair by resolving all known validation dependencies before execution and treating every hard AC as REQUIRED evidence.",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "supersedes": "TCC_EXECUTION_PLAN_v3.json",
   "audit_source": "VALIDATION_AUDIT_2026-10-03.json",
   "entrypoint": "run_tcc.sh",
-  "orchestrator": "tcc_orchestrator.py",
+  "orchestrator": "tcc_orchestrator_v4.py",
   "global_policy": {
     "fail_closed": true,
     "not_run_is_pass": false,
@@ -27,18 +27,20 @@
     "D20_scorer_contract": {"depends_on": ["D00_audit_baseline"], "produces": ["scorer_version", "unicode_normalization", "punctuation_policy", "case_policy", "english_tokenization_policy", "japanese_cer_policy"]},
     "D30_fixture_contract": {"depends_on": ["D20_scorer_contract"], "produces": ["expanded_en_fixture_set", "expanded_ja_fixture_set", "code_switch_fixture_set", "fixture_hash_manifest"]},
     "D40_technical_term_contract": {"depends_on": ["D20_scorer_contract", "D30_fixture_contract"], "produces": ["explicit_key_term_annotations", "technical_holdout_manifest"]},
-    "D50_aqua_pair_contract": {"depends_on": ["D30_fixture_contract"], "produces": ["paired_aqua_ja_results", "aqua_version", "aqua_test_date", "paired_fixture_ids"]},
+    "D50_aqua_pair_contract": {"depends_on": ["D30_fixture_contract"], "produces": ["paired_aqua_ja_results", "aqua_version", "aqua_test_date", "paired_fixture_ids"], "execution_fatal": false, "product_pass_required": true},
     "D60_context_dictionary_contract": {"depends_on": ["D30_fixture_contract", "D40_technical_term_contract"], "produces": ["dictionary_cases", "false_bias_negative_cases", "context_paired_cases"]},
     "D70_semantic_contract": {"depends_on": ["D20_scorer_contract", "D30_fixture_contract"], "produces": ["semantic_oracle_cases", "critical_mutation_rules"]},
     "D80_latency_contract": {"depends_on": ["D10_model_identity", "D30_fixture_contract"], "produces": ["real_time_paced_streaming_harness", "warm_run_count_100_plus", "latency_clock_contract"]},
-    "D90_evaluator_completeness": {"depends_on": ["D10_model_identity", "D20_scorer_contract", "D40_technical_term_contract", "D50_aqua_pair_contract", "D60_context_dictionary_contract", "D70_semantic_contract", "D80_latency_contract"], "produces": ["hard_ac_coverage_matrix", "not_run_blocker", "evidence_schema_v4"]},
+    "D90_evaluator_completeness": {"depends_on": ["D10_model_identity", "D20_scorer_contract", "D40_technical_term_contract", "D60_context_dictionary_contract", "D70_semantic_contract", "D80_latency_contract"], "produces": ["hard_ac_coverage_matrix", "not_run_blocker", "evidence_schema_v4"]},
     "D100_execution_ready": {"depends_on": ["D90_evaluator_completeness"], "produces": ["execution_ready=true"]}
   },
+  "execution_prerequisites": ["D10_model_identity", "D20_scorer_contract", "D30_fixture_contract", "D40_technical_term_contract", "D60_context_dictionary_contract", "D70_semantic_contract", "D80_latency_contract", "D90_evaluator_completeness"],
+  "product_pass_prerequisites": ["D50_aqua_pair_contract", "D100_execution_ready"],
   "issue_registry": [
     {"id":"I-A1","audit":"A1","severity":"CRITICAL","dependency":"D90_evaluator_completeness","issue":"semantic/ablation NOT_RUN could previously PASS","resolution":"Every hard AC has explicit status PASS|FAIL|BLOCKED; NOT_RUN or missing => BLOCKED_PRODUCT_VALIDATION"},
     {"id":"I-A2","audit":"A2","severity":"CRITICAL","dependency":"D60_context_dictionary_contract","issue":"dictionary/context/semantic hard ACs not evaluated","resolution":"Add required paired evidence and hard coverage matrix"},
     {"id":"I-A3","audit":"A3","severity":"HIGH","dependency":"D40_technical_term_contract","issue":"technical metric used whole-reference substring","resolution":"Annotate exact key terms per fixture and score term recall/precision separately"},
-    {"id":"I-A4","audit":"A4","severity":"HIGH","dependency":"D20_scorer_contract","issue":"WER/CER normalization undefined","resolution":"Freeze Unicode NFKC, case and punctuation policy, English tokenization and Japanese CER normalization"},
+    {"id":"I-A4","audit":"A4","severity":"HIGH","dependency":"D20_scorer_contract","issue":"WER/CER normalization undefined","resolution":"Freeze Unicode NFKC, case/punctuation policy, English tokenization and Japanese CER normalization"},
     {"id":"I-A5","audit":"A5","severity":"CRITICAL","dependency":"D30_fixture_contract","issue":"fixture set statistically insufficient","resolution":"Use expanded frozen fixture sets; sample-count gate must pass before metric comparison"},
     {"id":"I-A6","audit":"A6","severity":"HIGH","dependency":"D80_latency_contract","issue":"partial latency measured without real-time pacing","resolution":"Replay audio at wall-clock pace and timestamp microphone-release equivalent"},
     {"id":"I-A7","audit":"A7","severity":"CRITICAL","dependency":"D80_latency_contract","issue":"p95 from too few runs","resolution":"At least 100 warm runs for latency percentile ACs"},
@@ -59,73 +61,28 @@
   },
   "state_machine": [
     {"id":"S00","name":"plan_and_audit_validation","fatal":true,"on_pass":"S10","on_fail":"BLOCKED_PLAN"},
-    {"id":"S10","name":"dependency_inventory","fatal":true,"on_pass":"S20","on_fail":"BLOCKED_DEPENDENCY_GRAPH"},
-    {"id":"S20","name":"model_identity_freeze","fatal":true,"on_pass":"S30","on_fail":"BLOCKED_MODEL_IDENTITY"},
-    {"id":"S30","name":"scorer_contract_validation","fatal":true,"on_pass":"S40","on_fail":"BLOCKED_SCORER"},
-    {"id":"S40","name":"fixture_and_annotation_validation","fatal":true,"on_pass":"S50","on_fail":"BLOCKED_FIXTURE"},
-    {"id":"S50","name":"aqua_pair_validation","fatal":false,"on_pass":"S60","on_fail":"MARK_AQUA_PAIR_BLOCKED_AND_CONTINUE_NON_EQUIVALENCE_METRICS"},
-    {"id":"S60","name":"runtime_bootstrap","fatal":false,"on_pass":"S70","on_fail":"CLASSIFY_RUNTIME_BACKEND_BLOCK"},
-    {"id":"S70","name":"qwen_offline_inference","fatal":false,"on_pass":"S80","on_fail":"BLOCKED_MODEL_OR_RUNTIME"},
-    {"id":"S80","name":"qwen_streaming_100plus_realtime_runs","fatal":false,"on_pass":"S90","on_fail":"CLASSIFY_STREAMING_BLOCK_OR_LATENCY_FAIL"},
-    {"id":"S90","name":"dictionary_context_paired_runs","fatal":false,"on_pass":"S100","on_fail":"REFRAME_CONTEXT_OR_DICTIONARY"},
-    {"id":"S100","name":"semantic_integrity_runs","fatal":false,"on_pass":"S110","on_fail":"REJECT_SEMANTIC"},
-    {"id":"S110","name":"hard_ac_coverage_matrix","fatal":true,"on_pass":"S120","on_fail":"BLOCKED_HARD_AC_NOT_RUN"},
-    {"id":"S120","name":"final_disposition","fatal":true,"terminal":true}
+    {"id":"S10","name":"dependency_inventory_all_at_once","fatal":true,"on_pass":"S20","on_fail":"BLOCKED_DEPENDENCY_GRAPH"},
+    {"id":"S20","name":"prepare_and_freeze_execution_contracts","fatal":true,"on_pass":"S30","on_fail":"BLOCKED_EXECUTION_PREREQUISITE"},
+    {"id":"S30","name":"aqua_pair_inventory","fatal":false,"on_pass":"S40","on_fail":"MARK_AQUA_PAIR_BLOCKED_AND_CONTINUE"},
+    {"id":"S40","name":"runtime_bootstrap","fatal":false,"on_pass":"S50","on_fail":"CLASSIFY_RUNTIME_BACKEND_BLOCK"},
+    {"id":"S50","name":"qwen_offline_inference","fatal":false,"on_pass":"S60","on_fail":"BLOCKED_MODEL_OR_RUNTIME"},
+    {"id":"S60","name":"qwen_streaming_100plus_realtime_runs","fatal":false,"on_pass":"S70","on_fail":"CLASSIFY_STREAMING_BLOCK_OR_LATENCY_FAIL"},
+    {"id":"S70","name":"dictionary_context_paired_runs","fatal":false,"on_pass":"S80","on_fail":"REFRAME_CONTEXT_OR_DICTIONARY"},
+    {"id":"S80","name":"semantic_integrity_runs","fatal":false,"on_pass":"S90","on_fail":"REJECT_SEMANTIC"},
+    {"id":"S90","name":"hard_ac_coverage_matrix","fatal":true,"on_pass":"S100","on_fail":"BLOCKED_HARD_AC_NOT_RUN"},
+    {"id":"S100","name":"final_disposition","fatal":true,"terminal":true}
   ],
-  "branch_precedence": [
-    "REJECT_SEMANTIC",
-    "BLOCKED_PLAN",
-    "BLOCKED_DEPENDENCY_GRAPH",
-    "BLOCKED_MODEL_IDENTITY",
-    "BLOCKED_SCORER",
-    "BLOCKED_FIXTURE",
-    "BLOCKED_PACKAGE",
-    "BLOCKED_MODEL",
-    "BLOCKED_HARD_AC_NOT_RUN",
-    "REFRAME_ACCURACY",
-    "REFRAME_LATENCY",
-    "REFRAME_CONTEXT_OR_DICTIONARY",
-    "PARTIAL_AQUA_PAIR_BLOCKED",
-    "PARTIAL_STREAMING_BLOCKED",
-    "PASS"
-  ],
+  "branch_precedence": ["REJECT_SEMANTIC","BLOCKED_PLAN","BLOCKED_DEPENDENCY_GRAPH","BLOCKED_EXECUTION_PREREQUISITE","BLOCKED_PACKAGE","BLOCKED_MODEL","BLOCKED_HARD_AC_NOT_RUN","REFRAME_ACCURACY","REFRAME_LATENCY","REFRAME_CONTEXT_OR_DICTIONARY","PARTIAL_AQUA_PAIR_BLOCKED","PARTIAL_STREAMING_BLOCKED","PASS"],
   "one_pass_rules": {
     "pre_execution": [
-      "Resolve or explicitly classify every dependency D00-D100 before model execution.",
+      "Inventory every dependency in one pass and report all unresolved items together.",
+      "Execution may begin when all execution_prerequisites are ready; D50 Aqua pair may remain blocked without stopping independent Qwen evidence collection.",
       "Freeze model/scorer/fixtures/annotations/thresholds before inference.",
       "Generate a dependency snapshot hash and include it in every evidence file."
     ],
-    "during_execution": [
-      "No code, threshold, model, fixture, annotation, scorer, or timing-policy changes.",
-      "Only predefined retry budgets are permitted.",
-      "Independent suites continue after nonfatal blocks, but blocked hard ACs prevent product PASS."
-    ],
-    "after_execution": [
-      "Compute every hard AC from frozen evidence.",
-      "Any hard AC status other than PASS prevents product PASS.",
-      "CLOSED only when AC-EVIDENCE=PASS and all other hard ACs=PASS."
-    ]
+    "during_execution": ["No code, threshold, model, fixture, annotation, scorer, or timing-policy changes.","Only predefined retry budgets are permitted.","Independent suites continue after nonfatal blocks, but blocked hard ACs prevent product PASS."],
+    "after_execution": ["Compute every hard AC from frozen evidence.","Any hard AC status other than PASS prevents product PASS.","CLOSED only when AC-EVIDENCE=PASS and all other hard ACs=PASS."]
   },
-  "required_evidence": [
-    "dependency_snapshot.json",
-    "model_identity.json",
-    "scorer_contract.json",
-    "fixture_manifest.json",
-    "technical_term_annotations.json",
-    "aqua_pair_manifest.json",
-    "context_dictionary_manifest.json",
-    "semantic_oracle_manifest.json",
-    "runtime_snapshot.json",
-    "offline_predictions.jsonl",
-    "streaming_latency_runs.jsonl",
-    "context_dictionary_results.jsonl",
-    "semantic_integrity_results.jsonl",
-    "accuracy_metrics.json",
-    "latency_metrics.json",
-    "hard_ac_coverage_matrix.json",
-    "validation_result.json",
-    "orchestration_result.json",
-    "stage_events.jsonl"
-  ],
-  "closure_rule": "Product PASS/CLOSED only when D100 execution_ready=true, every required evidence file exists and hashes verify, every hard AC status is PASS, latency has >=100 warm real-time-paced runs, and Aqua paired Japanese evidence exists for the same frozen fixture IDs."
+  "required_evidence": ["dependency_snapshot.json","model_identity.json","scorer_contract.json","fixture_manifest.json","technical_term_annotations.json","aqua_pair_manifest.json","context_dictionary_manifest.json","semantic_oracle_manifest.json","runtime_snapshot.json","offline_predictions.jsonl","streaming_latency_runs.jsonl","context_dictionary_results.jsonl","semantic_integrity_results.jsonl","accuracy_metrics.json","latency_metrics.json","hard_ac_coverage_matrix.json","validation_result.json","orchestration_result.json","stage_events.jsonl"],
+  "closure_rule": "Product PASS/CLOSED only when D100 execution_ready=true, D50 aqua pair is ready, every required evidence file exists and hashes verify, every hard AC status is PASS, and latency has >=100 warm real-time-paced runs."
 }
