@@ -5,8 +5,7 @@ import json
 import time
 from pathlib import Path
 
-MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
-MODEL_REVISION = "7278e1e70fe206f11671096ffdd38061171dd6e5"
+from qwen_model_pin import MODEL_ID, MODEL_REVISION, resolve_pinned_model
 
 
 def load_audio(path: Path):
@@ -65,14 +64,14 @@ def main():
         raise SystemExit("v4 requires --runs >=100")
 
     from qwen_asr import Qwen3ASRModel
+    model_path = resolve_pinned_model()
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
     fixtures = [x for x in manifest.get("fixtures", []) if x.get("suite") == "general"]
     if not fixtures:
         raise SystemExit("no general fixtures")
 
     model = Qwen3ASRModel.LLM(
-        model=MODEL_ID,
-        revision=MODEL_REVISION,
+        model=model_path,
         gpu_memory_utilization=0.8,
         max_new_tokens=32,
     )
@@ -100,10 +99,11 @@ def main():
                 "final_text": text,
                 "model_id": MODEL_ID,
                 "model_revision": MODEL_REVISION,
+                "model_path": model_path,
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-    print(json.dumps({"status": "READY", "warmup": args.warmup, "measured_runs": args.runs, "out": str(out), "model_revision": MODEL_REVISION}, ensure_ascii=False))
+    print(json.dumps({"status": "READY", "warmup": args.warmup, "measured_runs": args.runs, "out": str(out), "model_revision": MODEL_REVISION, "model_path": model_path}, ensure_ascii=False))
     return 0
 
 
