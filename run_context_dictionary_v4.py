@@ -6,8 +6,7 @@ import re
 import unicodedata
 from pathlib import Path
 
-MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
-MODEL_REVISION = "7278e1e70fe206f11671096ffdd38061171dd6e5"
+from qwen_model_pin import MODEL_ID, MODEL_REVISION, resolve_pinned_model
 
 
 def norm(s):
@@ -88,9 +87,9 @@ def main():
     by_id = {x["id"]: x for x in man["fixtures"]}
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+    model_path = resolve_pinned_model()
     model = Qwen3ASRModel.from_pretrained(
-        MODEL_ID,
-        revision=MODEL_REVISION,
+        model_path,
         dtype=dtype,
         device_map=device,
         max_inference_batch_size=1,
@@ -156,6 +155,7 @@ def main():
         "pairs": len(rows),
         "model_id": MODEL_ID,
         "model_revision": MODEL_REVISION,
+        "model_path": model_path,
     }
     Path("evidence/context_dictionary_metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(metrics, ensure_ascii=False))
