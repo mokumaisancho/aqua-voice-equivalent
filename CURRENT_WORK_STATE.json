@@ -1,7 +1,8 @@
 {
-  "work_id": "TCC-QWEN-ASR-010",
-  "state": "TCC_V4_FALSE_PASS_PATHS_HARDENED_RUNTIME_EVIDENCE_PENDING",
+  "work_id": "TCC-QWEN-ASR-011",
+  "state": "TCC_V4_MODEL_AND_OPENASR_PINNED_RUNTIME_EVIDENCE_PENDING",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
+  "model_revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
   "authoritative_plan": "TCC_EXECUTION_PLAN_v4.json",
   "entrypoint": "run_tcc.sh",
   "orchestrator": "tcc_orchestrator_v4.py",
@@ -11,33 +12,36 @@
     "nonfatal_external_before_execution": ["D50_aqua_pair_contract"],
     "product_pass_requires": ["D50_aqua_pair_contract","D100_execution_ready"]
   },
-  "hardened_after_v4_reaudit": [
-    "release-to-final clock now starts at last-frame arrival before final-chunk inference",
-    "first-partial timing no longer processes future audio before wall-clock arrival",
-    "technical terms use bounded ASCII token/phrase matching instead of unrestricted substring matching",
-    "technical prediction pairs missing => BLOCKED rather than silently reducing denominator",
-    "dictionary false-bias measures newly induced forbidden terms relative to paired base output",
-    "context harm uses paired substitution-rate delta instead of aggregate error-rate delta",
-    "semantic AC requires a non-identity product finalizer",
-    "bounded finalizer v4 added: NFKC + whitespace normalization + standalone English filler removal only",
-    "Japanese filler deletion disabled because morphology makes blind deletion unsafe",
-    "metric regression test added and made mandatory before orchestration"
+  "completed_since_reaudit": [
+    "Qwen model revision pinned to 7278e1e70fe206f11671096ffdd38061171dd6e5",
+    "weight shard SHA256 pins recorded in qwen_model_pin.py and verified by freeze_model_identity.py at runtime",
+    "all Qwen runners resolve one local pinned snapshot so model and processor cannot drift to different revisions",
+    "evaluator rejects mixed or stale model revisions across offline, context/dictionary, streaming latency, semantic, Aqua-pair, and OpenASR evidence",
+    "official OpenASR English short-form Mean WER 5.76% recorded in evidence/openasr_result.json",
+    "OpenASR protocol pinned to huggingface/open_asr_leaderboard commit 67e8bd6acea240819ad67080f6f31e15d4a90da5",
+    "AC-ACC-EN threshold 6.23% is therefore externally evidenced PASS for the pinned Qwen weight revision",
+    "model-pin static regression test added and required by run_tcc.sh"
   ],
-  "verified_without_model_runtime": [
-    "v4 plan structure",
-    "metric boundary behavior",
-    "paired substitution accounting",
-    "bounded finalizer deletion policy",
-    "fail-closed hard-AC evaluator structure"
-  ],
+  "hard_ac_known_state": {
+    "AC-ACC-EN": "PASS_EXTERNAL_OFFICIAL",
+    "AC-ACC-JA-AQUA": "BLOCKED_AQUA_PAIR_MISSING",
+    "AC-TECH": "PENDING_QWEN_RUNTIME",
+    "AC-DICT-RECALL": "PENDING_QWEN_RUNTIME",
+    "AC-DICT-FALSE-BIAS": "PENDING_QWEN_RUNTIME",
+    "AC-CTX-HARM": "PENDING_QWEN_RUNTIME",
+    "AC-LAT-P50": "PENDING_VLLM_RUNTIME",
+    "AC-LAT-P95": "PENDING_VLLM_RUNTIME",
+    "AC-SEM": "PENDING_QWEN_RUNTIME",
+    "AC-EVIDENCE": "PENDING_FINAL_MATRIX"
+  },
   "remaining_runtime_or_external_evidence": [
-    "Qwen offline inference on frozen fixtures",
+    "Qwen offline inference on frozen fixtures using pinned local snapshot",
     "100+ valid real-time-paced streaming runs under corrected clock contract",
     "dictionary/context paired inference results",
     "semantic finalizer results over actual Qwen hypotheses",
-    "official pinned OpenASR English short-form result for the frozen Qwen revision",
     "paired Japanese Aqua results on identical frozen fixture IDs with Aqua version/date"
   ],
-  "current_conclusion": "Known false-PASS paths found in the v4 re-audit are now hardened. Infrastructure/metric regression tests pass. Product PASS remains prohibited until actual Qwen runtime and external Aqua/OpenASR evidence are complete.",
-  "closure_rule": "Product PASS only when every v4 hard AC is explicitly PASS; any FAIL, BLOCKED, missing, stale clock contract, missing paired fixture, or NOT_RUN prohibits closure."
+  "environment_block": "Available Hugging Face Jobs path previously returned 402 Payment Required; current GPT sandbox lacks usable external Qwen/vLLM runtime. This is BLOCKED_ENV, not a model failure.",
+  "current_conclusion": "OpenASR English accuracy dependency is resolved and model identity drift paths are closed. Product PASS remains prohibited until Qwen runtime evidence and paired Aqua Japanese evidence are complete.",
+  "closure_rule": "Product PASS only when every v4 hard AC is explicitly PASS; any FAIL, BLOCKED, revision mismatch, missing, stale clock contract, missing paired fixture, or NOT_RUN prohibits closure."
 }
