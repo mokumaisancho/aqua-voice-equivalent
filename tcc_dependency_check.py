@@ -59,7 +59,6 @@ def main() -> int:
     plan = json.loads(PLAN.read_text(encoding="utf-8"))
     graph = plan["dependency_graph"]
     nodes = {}
-    unresolved = []
 
     for dep_id in graph:
         required = ARTIFACTS.get(dep_id, [])
@@ -68,34 +67,56 @@ def main() -> int:
         upstream_blocked = [x for x in deps if nodes.get(x, {}).get("ready") is False]
         artifact_blocked = [x for x in artifacts if x["state"] != "PRESENT"]
         ready = not upstream_blocked and not artifact_blocked
-        if dep_id == "D100_execution_ready":
-            ready = all(nodes.get(x, {}).get("ready") for x in deps)
         nodes[dep_id] = {
             "ready": bool(ready),
             "depends_on": deps,
             "upstream_blocked": upstream_blocked,
             "artifacts": artifacts,
         }
-        if not ready:
-            unresolved.append(dep_id)
+
+    execution_prereqs = plan["execution_prerequisites"]
+    product_prereqs = plan["product_pass_prerequisites"]
+    execution_blockers = [x for x in execution_prereqs if not nodes.get(x, {}).get("ready")]
+
+    # D100 is a derived execution-readiness node, not an independent artifact.
+    nodes["D100_execution_ready"] = {
+        "ready": not execution_blockers,
+        "depends_on": execution_prereqs,
+        "upstream_blocked": execution_blockers,
+        "artifacts": [],
+    }
+
+    product_blockers = []
+    for dep in product_prereqs:
+        if not nodes.get(dep, {}).get("ready"):
+            product_blockers.append(dep)
+
+    unresolved = [x for x, v in nodes.items() if not v.get("ready")]
+    execution_ready = not execution_blockers
+    product_pass_ready = execution_ready and not product_blockers
 
     snapshot = {
         "plan_id": plan["plan_id"],
-        "status": "READY" if nodes["D100_execution_ready"]["ready"] else "BLOCKED",
-        "execution_ready": nodes["D100_execution_ready"]["ready"],
+        "status": "READY_FOR_EXECUTION" if execution_ready else "BLOCKED_EXECUTION",
+        "execution_ready": execution_ready,
+        "product_pass_ready": product_pass_ready,
+        "execution_blockers": execution_blockers,
+        "product_pass_blockers": product_blockers,
         "unresolved_dependencies": unresolved,
         "nodes": nodes,
-        "rule": "All dependency blockers are reported in one pass. Model execution is prohibited until D100 is ready.",
+        "rule": "All blockers are reported in one pass. Qwen execution may proceed when execution_prerequisites are ready; product PASS additionally requires product_pass_prerequisites.",
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({
         "status": snapshot["status"],
-        "execution_ready": snapshot["execution_ready"],
-        "unresolved_dependencies": unresolved,
+        "execution_ready": execution_ready,
+        "product_pass_ready": product_pass_ready,
+        "execution_blockers": execution_blockers,
+        "product_pass_blockers": product_blockers,
         "snapshot": str(OUT.relative_to(ROOT)),
     }, ensure_ascii=False))
-    return 0 if snapshot["execution_ready"] else 2
+    return 0 if execution_ready else 2
 
 
 if __name__ == "__main__":
