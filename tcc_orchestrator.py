@@ -44,13 +44,14 @@ def run(cmd, *, events: Path, stage: str, retries: int = 0, env=None):
     return last
 
 
-def pkg(name: str) -> bool:
-    try:
-        import importlib.metadata as md
-        md.version(name)
-        return True
-    except Exception:
-        return False
+def py_has_pkg(py: str, name: str) -> bool:
+    p = subprocess.run(
+        [py, "-c", f"import importlib.metadata as m; m.version({name!r})"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    return p.returncode == 0
 
 
 def linux_cuda() -> bool:
@@ -68,26 +69,26 @@ def ensure_venv(events: Path):
 
 
 def bootstrap_dependencies(events: Path):
-    py = ensure_venv(events)
-    if py is None:
+    py_path = ensure_venv(events)
+    if py_path is None:
         return {"offline": False, "streaming": False, "python": sys.executable}
 
-    env = os.environ.copy()
-    offline_ok = True
-    streaming_ok = True
-
-    if not pkg("qwen-asr"):
-        r = run([str(py), "-m", "pip", "install", "-U", "qwen-asr"], events=events, stage="bootstrap_offline")
-        offline_ok = r["returncode"] == 0
+    py = str(py_path)
+    offline_ok = py_has_pkg(py, "qwen-asr")
+    if not offline_ok:
+        r = run([py, "-m", "pip", "install", "-U", "qwen-asr"], events=events, stage="bootstrap_offline")
+        offline_ok = r["returncode"] == 0 and py_has_pkg(py, "qwen-asr")
 
     if linux_cuda():
-        r = run([str(py), "-m", "pip", "install", "-U", "qwen-asr[vllm]"], events=events, stage="bootstrap_streaming")
-        streaming_ok = r["returncode"] == 0
+        streaming_ok = py_has_pkg(py, "vllm")
+        if not streaming_ok:
+            r = run([py, "-m", "pip", "install", "-U", "qwen-asr[vllm]"], events=events, stage="bootstrap_streaming")
+            streaming_ok = r["returncode"] == 0 and py_has_pkg(py, "vllm")
     else:
         streaming_ok = False
         emit(events, "bootstrap_streaming", "BLOCKED", reason="unsupported_non_linux_or_no_cuda")
 
-    return {"offline": offline_ok, "streaming": streaming_ok, "python": str(py), "env": env}
+    return {"offline": offline_ok, "streaming": streaming_ok, "python": py}
 
 
 def required_evidence(run_dir: Path):
@@ -105,6 +106,14 @@ def required_evidence(run_dir: Path):
     return names, [n for n in names if not (run_dir / n).exists()]
 
 
+def finish(result_path: Path, result: dict, events: Path, code: int) -> int:
+    result["closed"] = result.get("status") == "PASS"
+    result_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    emit(events, "final_disposition", result.get("status", "BLOCKED"), branch=result.get("branch"), closed=result["closed"])
+    print(json.dumps({"status": result.get("status"), "branch": result.get("branch"), "run_dir": result.get("run_dir")}, ensure_ascii=False))
+    return code
+
+
 def main() -> int:
     plan = json.loads(PLAN.read_text(encoding="utf-8"))
     run_id = ts()
@@ -115,84 +124,68 @@ def main() -> int:
 
     result = {
         "run_id": run_id,
-        "plan_id": plan["plan_id"],
+        "plan_id": plan.get("plan_id"),
         "status": "RUNNING",
         "branch": None,
         "run_dir": str(run_dir.relative_to(ROOT)),
         "stages": {},
     }
 
-    # S00 plan validation
     mandatory = ["states", "branch_actions", "acceptance_gates", "evidence"]
     missing = [k for k in mandatory if k not in plan]
     if missing:
         result.update(status="BLOCKED", branch="BLOCKED_PLAN", detail={"missing": missing})
-        result_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-        return 2
+        return finish(result_path, result, events, 2)
     emit(events, "plan_validation", "PASS")
 
-    # S10 fixture contract
     r = run([sys.executable, "test_fixture_catalog.py"], events=events, stage="fixture_contract")
     result["stages"]["fixture_contract"] = r
     if r["returncode"] != 0:
         result.update(status="BLOCKED", branch="BLOCKED_FIXTURE_CONTRACT")
-        result_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-        return 2
+        return finish(result_path, result, events, 2)
 
-    # S20 public fixtures: fixed retry budget
     r = run([sys.executable, "fetch_public_fixtures.py"], events=events, stage="public_fixture_fetch", retries=2)
     result["stages"]["public_fixture_fetch"] = r
     if r["returncode"] != 0:
         result.update(status="BLOCKED", branch="BLOCKED_FIXTURE")
-        result_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-        return 2
+        return finish(result_path, result, events, 2)
 
-    # S30 JECS optional, does not block independent suites
     r = run([sys.executable, "extract_jecs_fixture.py"], events=events, stage="jecs_extract")
     result["stages"]["jecs_extract"] = r
     code_switch_blocked = r["returncode"] != 0
 
-    # S40/S50 runtime + deterministic bootstrap
     deps = bootstrap_dependencies(events)
     result["dependencies"] = deps
     if not deps["offline"]:
         result.update(status="BLOCKED", branch="BLOCKED_PACKAGE")
-        result_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-        return 2
+        return finish(result_path, result, events, 2)
 
     py = deps["python"]
     evidence_arg = str(run_dir.relative_to(ROOT))
 
-    # S60 preflight: record, do not blindly abort; execute produces authoritative branch evidence.
     r = run([py, "tcc_runner.py", "--plan", PLAN.name, "--mode", "preflight", "--evidence-dir", evidence_arg], events=events, stage="preflight")
     result["stages"]["preflight"] = r
 
-    # S70-S90 execute once. No fixture-specific or threshold tuning.
     r = run([py, "tcc_runner.py", "--plan", PLAN.name, "--mode", "execute", "--evidence-dir", evidence_arg], events=events, stage="qwen_suite")
     result["stages"]["qwen_suite"] = r
 
-    # S100 evidence completeness
     names, missing = required_evidence(run_dir)
+    result["required_evidence"] = names
     if missing:
         result.update(status="BLOCKED", branch="BLOCKED_EVIDENCE", missing_evidence=missing)
-    else:
-        validation = json.loads((run_dir / "validation_result.json").read_text(encoding="utf-8"))
-        status = validation.get("status", "BLOCKED")
-        branch = validation.get("branch", "UNKNOWN")
-        if code_switch_blocked and status == "PASS":
-            status = "BLOCKED"
-            branch = "PARTIAL_CODE_SWITCH_BLOCKED"
-        if not deps["streaming"] and status == "PASS":
-            status = "BLOCKED"
-            branch = "PARTIAL_STREAMING_BLOCKED"
-        result.update(status=status, branch=branch, validation=validation)
+        return finish(result_path, result, events, 2)
 
-    result["required_evidence"] = names
-    result["closed"] = result["status"] == "PASS"
-    result_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-    emit(events, "final_disposition", result["status"], branch=result["branch"], closed=result["closed"])
-    print(json.dumps({"status": result["status"], "branch": result["branch"], "run_dir": result["run_dir"]}, ensure_ascii=False))
-    return 0 if result["status"] == "PASS" else 2
+    validation = json.loads((run_dir / "validation_result.json").read_text(encoding="utf-8"))
+    status = validation.get("status", "BLOCKED")
+    branch = validation.get("branch", "UNKNOWN")
+    if code_switch_blocked and status == "PASS":
+        status = "BLOCKED"
+        branch = "PARTIAL_CODE_SWITCH_BLOCKED"
+    if not deps["streaming"] and status == "PASS":
+        status = "BLOCKED"
+        branch = "PARTIAL_STREAMING_BLOCKED"
+    result.update(status=status, branch=branch, validation=validation)
+    return finish(result_path, result, events, 0 if status == "PASS" else 2)
 
 
 if __name__ == "__main__":
