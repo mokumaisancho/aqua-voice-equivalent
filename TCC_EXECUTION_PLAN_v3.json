@@ -1,0 +1,88 @@
+{
+  "plan_id": "TCC-QWEN-ASR-003",
+  "mode": "ONE_PASS_EXECUTABLE_STATE_MACHINE",
+  "objective": "Complete fixture acquisition, Qwen3-ASR offline/streaming evaluation, predefined ablations, evidence generation, and final disposition without ad-hoc iterative repair.",
+  "primary_model": "Qwen/Qwen3-ASR-1.7B",
+  "entrypoint": "run_tcc.sh",
+  "orchestrator": "tcc_orchestrator.py",
+  "global_policy": {
+    "fail_closed": true,
+    "no_runtime_threshold_changes": true,
+    "no_fixture_specific_tuning": true,
+    "no_model_swap": true,
+    "fixed_network_retries": 2,
+    "fixed_stage_retries": 1,
+    "reuse_valid_cached_fixtures": true,
+    "continue_independent_suites_after_nonfatal_block": true,
+    "archive_each_run": true
+  },
+  "states": [
+    {"id":"S00","name":"plan_validation","fatal":true,"on_pass":"S10","on_fail":"STOP_PLAN_INVALID"},
+    {"id":"S10","name":"fixture_contract_test","fatal":true,"on_pass":"S20","on_fail":"STOP_FIXTURE_CONTRACT_INVALID"},
+    {"id":"S20","name":"public_fixture_fetch_and_reference_verify","fatal":true,"retry":2,"on_pass":"S30","on_fail":"STOP_PUBLIC_FIXTURE_BLOCKED"},
+    {"id":"S30","name":"jecs_optional_extract","fatal":false,"on_pass":"S40","on_fail":"MARK_CODE_SWITCH_BLOCKED_AND_CONTINUE"},
+    {"id":"S40","name":"runtime_inventory","fatal":true,"on_pass":"S50","on_fail":"STOP_ENV_BLOCKED"},
+    {"id":"S50","name":"dependency_bootstrap","fatal":false,"conditions":["qwen-asr missing => bootstrap offline dependency once","vLLM missing => attempt streaming dependency only on supported Linux/CUDA runtime"],"on_pass":"S60","on_fail":"MARK_RELEVANT_BACKEND_BLOCKED_AND_CONTINUE"},
+    {"id":"S60","name":"tcc_preflight","fatal":false,"on_pass":"S70","on_fail":"CLASSIFY_PRECONDITION_BRANCH"},
+    {"id":"S70","name":"offline_qwen_suite","fatal":false,"on_pass":"S80","on_fail":"CLASSIFY_MODEL_OR_ACCURACY_BRANCH"},
+    {"id":"S80","name":"streaming_qwen_suite","fatal":false,"on_pass":"S90","on_fail":"MARK_STREAMING_BLOCKED_OR_LATENCY_FAIL"},
+    {"id":"S90","name":"predefined_ablations","fatal":false,"conditions":["accuracy fail => dictionary/context/normalization ablation once","context harm => offending context source disabled and paired rerun once","semantic mutation => reject normalization without rerun"],"on_pass":"S100","on_fail":"S100"},
+    {"id":"S100","name":"evidence_completeness","fatal":true,"on_pass":"S110","on_fail":"STOP_EVIDENCE_INCOMPLETE"},
+    {"id":"S110","name":"final_disposition","fatal":true,"terminal":true}
+  ],
+  "branch_precedence": [
+    "REJECT_SEMANTIC",
+    "BLOCKED_PLAN",
+    "BLOCKED_FIXTURE",
+    "BLOCKED_ENV",
+    "BLOCKED_PACKAGE",
+    "BLOCKED_MODEL",
+    "REFRAME_ACCURACY",
+    "REFRAME_LATENCY",
+    "REFRAME_CONTEXT",
+    "PARTIAL_STREAMING_BLOCKED",
+    "PASS"
+  ],
+  "branch_actions": {
+    "STOP_PLAN_INVALID":"write orchestration_result.json; no further execution",
+    "STOP_FIXTURE_CONTRACT_INVALID":"write exact schema violation; no fixture download",
+    "STOP_PUBLIC_FIXTURE_BLOCKED":"preserve download/reference evidence; no ASR claims",
+    "MARK_CODE_SWITCH_BLOCKED_AND_CONTINUE":"run EN/JA/general/technical suites; code-switch AC explicitly BLOCKED",
+    "STOP_ENV_BLOCKED":"record runtime delta; no code mutation",
+    "MARK_RELEVANT_BACKEND_BLOCKED_AND_CONTINUE":"offline may continue without vLLM; streaming never falsely passes",
+    "CLASSIFY_PRECONDITION_BRANCH":"map to ENV/PACKAGE/MODEL/FIXTURE without threshold changes",
+    "CLASSIFY_MODEL_OR_ACCURACY_BRANCH":"model-load failure=BLOCKED_MODEL; valid inference below AC=REFRAME_ACCURACY",
+    "MARK_STREAMING_BLOCKED_OR_LATENCY_FAIL":"missing backend=PARTIAL_STREAMING_BLOCKED; measured latency miss=REFRAME_LATENCY",
+    "STOP_EVIDENCE_INCOMPLETE":"BLOCKED_EVIDENCE; PASS prohibited"
+  },
+  "acceptance_gates": {
+    "english_wer_max": 0.0623,
+    "english_wer_stretch": 0.055,
+    "japanese_cer_vs_aqua_margin_pp": 0.5,
+    "technical_key_term_accuracy_min": 0.95,
+    "technical_key_term_accuracy_target": 0.97,
+    "dictionary_target_recall_min": 0.98,
+    "false_bias_rate_max": 0.01,
+    "release_to_final_p50_ms_max": 450,
+    "release_to_final_p95_ms_max": 700,
+    "semantic_critical_violations_max": 0,
+    "context_false_substitution_delta_pp_max": 1.0
+  },
+  "evidence": {
+    "run_root": "evidence/runs/<run_id>",
+    "required": [
+      "orchestration_result.json",
+      "stage_events.jsonl",
+      "runtime_snapshot.json",
+      "fixture_manifest.json",
+      "accuracy_metrics.json",
+      "latency_metrics.json",
+      "resource_metrics.json",
+      "ablation_summary.json",
+      "semantic_integrity.json",
+      "validation_result.json",
+      "current_work_state.json"
+    ]
+  },
+  "closure_rule": "CLOSED only when final disposition is PASS and every required evidence file exists. BLOCKED/REFRAME/REJECT remain OPEN with machine-readable branch and next executable condition."
+}
