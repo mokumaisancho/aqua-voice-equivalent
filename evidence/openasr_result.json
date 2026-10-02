@@ -1,0 +1,24 @@
+{
+  "status": "READY",
+  "model_id": "Qwen/Qwen3-ASR-1.7B",
+  "model_revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+  "macro_wer": 0.0576,
+  "macro_wer_percent": 5.76,
+  "benchmark": "hf-audio/open-asr-leaderboard",
+  "protocol": "English short-form main benchmark",
+  "protocol_repo": "huggingface/open_asr_leaderboard",
+  "protocol_commit": "67e8bd6acea240819ad67080f6f31e15d4a90da5",
+  "datasets": [
+    "ami_cleaned:test",
+    "gigaspeech_cleaned:test",
+    "voxpopuli_cleaned_aa:test",
+    "earnings22:test",
+    "librispeech:test.clean",
+    "librispeech:test.other",
+    "spgispeech:test"
+  ],
+  "source_checked_date": "2026-10-03",
+  "source_note": "Official Hugging Face model evaluation metadata reports Mean WER 5.76 for Qwen/Qwen3-ASR-1.7B. Protocol repository main was pinned at the recorded commit when checked.",
+  "ac_threshold": 0.0623,
+  "ac_result": "PASS"
+}
