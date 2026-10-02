@@ -1,0 +1,76 @@
+{
+  "audit_id": "AUDIT-QWEN-ASR-001",
+  "date": "2026-10-03",
+  "conclusion": "VALIDATION_RESULT_NOT_PRODUCT_CONCLUSIVE",
+  "severity": "CRITICAL",
+  "findings": [
+    {
+      "id": "A1",
+      "severity": "CRITICAL",
+      "finding": "semantic_integrity and predefined ablations can remain NOT_RUN while the runner can still reach PASS because semantic_critical_violations defaults to 0.",
+      "effect": "false PASS possible for untested hard ACs"
+    },
+    {
+      "id": "A2",
+      "severity": "CRITICAL",
+      "finding": "external evaluator does not evaluate dictionary_target_recall, false_bias_rate, context_false_substitution_delta, or semantic integrity, despite these being hard ACs in the authoritative plan.",
+      "effect": "full PASS can be claimed without full AC coverage"
+    },
+    {
+      "id": "A3",
+      "severity": "HIGH",
+      "finding": "technical_key_term_accuracy is computed by checking whether the entire reference sentence is a substring of the hypothesis instead of scoring declared key terms.",
+      "effect": "technical accuracy metric is invalid and can materially change disposition"
+    },
+    {
+      "id": "A4",
+      "severity": "HIGH",
+      "finding": "WER/CER scoring is not normalized for case, punctuation, or Unicode normalization. Qwen formatting differences can be counted as recognition errors.",
+      "effect": "false failure or distorted accuracy is possible"
+    },
+    {
+      "id": "A5",
+      "severity": "CRITICAL",
+      "finding": "current FLEURS evaluation set is too small to support comparison against the historical 6.23% OpenASR average WER or an Aqua-class accuracy claim.",
+      "effect": "statistical validity absent; a pass/fail from one general utterance per language is not decision-grade"
+    },
+    {
+      "id": "A6",
+      "severity": "HIGH",
+      "finding": "streaming first_partial_ms feeds 500 ms chunks as fast as compute allows, without real-time pacing. It therefore measures compute time rather than user-perceived partial latency.",
+      "effect": "false latency PASS possible"
+    },
+    {
+      "id": "A7",
+      "severity": "CRITICAL",
+      "finding": "p50/p95 streaming latency can be calculated from only a few single runs, conflicting with the original 100+ warm-run latency requirement.",
+      "effect": "latency percentile evidence is not reliable"
+    },
+    {
+      "id": "A8",
+      "severity": "HIGH",
+      "finding": "model ID is pinned by name only, without model revision/hash in evidence.",
+      "effect": "results are not fully reproducible if upstream weights change"
+    },
+    {
+      "id": "A9",
+      "severity": "HIGH",
+      "finding": "Japanese Aqua non-inferiority AC has no paired Aqua evidence path in the current evaluator and remains blocked.",
+      "effect": "Aqua-equivalence cannot currently be established"
+    }
+  ],
+  "reclassification": {
+    "previous_interpretation": "validation/self-tests PASS",
+    "new_interpretation": "infrastructure and contract self-tests PASS only; product accuracy/latency equivalence unproven"
+  },
+  "required_before_product_PASS": [
+    "fail closed on every hard AC that is NOT_RUN",
+    "define and score explicit technical key terms",
+    "freeze scorer normalization",
+    "expand benchmark fixture counts and restore minimum run counts",
+    "measure streaming latency with real-time pacing and 100+ warm runs",
+    "pin model revision/hash",
+    "add paired Aqua Japanese evidence",
+    "add dictionary/context/semantic AC evidence"
+  ]
+}
