@@ -1,6 +1,6 @@
 {
-  "work_id": "TCC-QWEN-ASR-009",
-  "state": "TCC_V4_ONE_PASS_DEPENDENCY_AWARE_READY",
+  "work_id": "TCC-QWEN-ASR-010",
+  "state": "TCC_V4_FALSE_PASS_PATHS_HARDENED_RUNTIME_EVIDENCE_PENDING",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "authoritative_plan": "TCC_EXECUTION_PLAN_v4.json",
   "entrypoint": "run_tcc.sh",
@@ -11,39 +11,33 @@
     "nonfatal_external_before_execution": ["D50_aqua_pair_contract"],
     "product_pass_requires": ["D50_aqua_pair_contract","D100_execution_ready"]
   },
-  "resolved_by_v4_design": [
-    "NOT_RUN can no longer become PASS",
-    "all hard ACs require explicit PASS/FAIL/BLOCKED status",
-    "technical accuracy uses declared key terms",
-    "local smoke scoring is separated from official OpenASR hard-AC scoring",
-    "official OpenASR repository/protocol is pinned",
-    "model revision and model artifact tree hash are frozen before inference",
-    "streaming latency requires wall-clock pacing and >=100 measured warm runs",
-    "dictionary/context paired evidence has dedicated metrics",
-    "semantic integrity evidence is explicit and cannot default to zero",
-    "all unresolved dependencies are reported together before execution"
+  "hardened_after_v4_reaudit": [
+    "release-to-final clock now starts at last-frame arrival before final-chunk inference",
+    "first-partial timing no longer processes future audio before wall-clock arrival",
+    "technical terms use bounded ASCII token/phrase matching instead of unrestricted substring matching",
+    "technical prediction pairs missing => BLOCKED rather than silently reducing denominator",
+    "dictionary false-bias measures newly induced forbidden terms relative to paired base output",
+    "context harm uses paired substitution-rate delta instead of aggregate error-rate delta",
+    "semantic AC requires a non-identity product finalizer",
+    "bounded finalizer v4 added: NFKC + whitespace normalization + standalone English filler removal only",
+    "Japanese filler deletion disabled because morphology makes blind deletion unsafe",
+    "metric regression test added and made mandatory before orchestration"
   ],
-  "automated_v4_stages": [
-    "plan self-test",
-    "validation contract generation",
-    "fixture contract test",
-    "public fixture fetch/reference verification",
-    "offline dependency bootstrap",
-    "model identity freeze",
-    "all-at-once dependency inventory",
-    "Qwen offline inference",
-    "dictionary/context paired runs",
-    "explicit semantic integrity run",
-    "streaming backend bootstrap",
-    "100-run real-time-paced streaming latency",
-    "fail-closed hard-AC evaluation",
-    "run-scoped evidence archive",
-    "final disposition"
+  "verified_without_model_runtime": [
+    "v4 plan structure",
+    "metric boundary behavior",
+    "paired substitution accounting",
+    "bounded finalizer deletion policy",
+    "fail-closed hard-AC evaluator structure"
   ],
-  "external_product_pass_dependencies": [
+  "remaining_runtime_or_external_evidence": [
+    "Qwen offline inference on frozen fixtures",
+    "100+ valid real-time-paced streaming runs under corrected clock contract",
+    "dictionary/context paired inference results",
+    "semantic finalizer results over actual Qwen hypotheses",
     "official pinned OpenASR English short-form result for the frozen Qwen revision",
-    "paired Japanese Aqua results on the same frozen fixture IDs with Aqua version/date"
+    "paired Japanese Aqua results on identical frozen fixture IDs with Aqua version/date"
   ],
-  "current_conclusion": "The workflow is now structured for one-pass execution without ad-hoc repair. Missing external evidence produces machine-readable BLOCKED, while independent Qwen evidence continues automatically.",
-  "closure_rule": "Product PASS only when every v4 hard AC is explicitly PASS; any FAIL, BLOCKED, missing, or NOT_RUN prohibits closure."
+  "current_conclusion": "Known false-PASS paths found in the v4 re-audit are now hardened. Infrastructure/metric regression tests pass. Product PASS remains prohibited until actual Qwen runtime and external Aqua/OpenASR evidence are complete.",
+  "closure_rule": "Product PASS only when every v4 hard AC is explicitly PASS; any FAIL, BLOCKED, missing, stale clock contract, missing paired fixture, or NOT_RUN prohibits closure."
 }
