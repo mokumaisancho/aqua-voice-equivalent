@@ -91,19 +91,12 @@ def bootstrap_dependencies(events: Path):
     return {"offline": offline_ok, "streaming": streaming_ok, "python": py}
 
 
-def required_evidence(run_dir: Path):
-    names = [
-        "runtime_snapshot.json",
-        "fixture_manifest.json",
-        "accuracy_metrics.json",
-        "latency_metrics.json",
-        "resource_metrics.json",
-        "ablation_summary.json",
-        "semantic_integrity.json",
-        "validation_result.json",
-        "current_work_state.json",
-    ]
-    return names, [n for n in names if not (run_dir / n).exists()]
+def required_evidence(plan: dict, run_dir: Path):
+    names = list(plan["evidence"]["required"])
+    # orchestration_result.json is written by finish(); all other evidence must
+    # already exist before the final disposition can be emitted.
+    prefinal = [n for n in names if n != "orchestration_result.json"]
+    return names, [n for n in prefinal if not (run_dir / n).exists()]
 
 
 def finish(result_path: Path, result: dict, events: Path, code: int) -> int:
@@ -169,7 +162,7 @@ def main() -> int:
     r = run([py, "tcc_runner.py", "--plan", PLAN.name, "--mode", "execute", "--evidence-dir", evidence_arg], events=events, stage="qwen_suite")
     result["stages"]["qwen_suite"] = r
 
-    names, missing = required_evidence(run_dir)
+    names, missing = required_evidence(plan, run_dir)
     result["required_evidence"] = names
     if missing:
         result.update(status="BLOCKED", branch="BLOCKED_EVIDENCE", missing_evidence=missing)
