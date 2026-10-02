@@ -1,36 +1,49 @@
 {
-  "work_id": "TCC-QWEN-ASR-008",
-  "state": "VALIDATION_AUDIT_INVALIDATED_PRODUCT_PASS",
+  "work_id": "TCC-QWEN-ASR-009",
+  "state": "TCC_V4_ONE_PASS_DEPENDENCY_AWARE_READY",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
-  "authoritative_plan": "TCC_EXECUTION_PLAN_v3.json",
+  "authoritative_plan": "TCC_EXECUTION_PLAN_v4.json",
+  "entrypoint": "run_tcc.sh",
+  "orchestrator": "tcc_orchestrator_v4.py",
   "audit": "VALIDATION_AUDIT_2026-10-03.json",
-  "validated_so_far": [
-    "TCC state-machine structure",
-    "fixture contract checks",
-    "fail-closed branch mechanics in selected paths",
-    "external-result merge mechanics on synthetic fixtures"
+  "dependency_model": {
+    "execution_prerequisites": ["D10_model_identity","D20_scorer_contract","D30_fixture_contract","D40_technical_term_contract","D60_context_dictionary_contract","D70_semantic_contract","D80_latency_contract","D90_evaluator_completeness"],
+    "nonfatal_external_before_execution": ["D50_aqua_pair_contract"],
+    "product_pass_requires": ["D50_aqua_pair_contract","D100_execution_ready"]
+  },
+  "resolved_by_v4_design": [
+    "NOT_RUN can no longer become PASS",
+    "all hard ACs require explicit PASS/FAIL/BLOCKED status",
+    "technical accuracy uses declared key terms",
+    "local smoke scoring is separated from official OpenASR hard-AC scoring",
+    "official OpenASR repository/protocol is pinned",
+    "model revision and model artifact tree hash are frozen before inference",
+    "streaming latency requires wall-clock pacing and >=100 measured warm runs",
+    "dictionary/context paired evidence has dedicated metrics",
+    "semantic integrity evidence is explicit and cannot default to zero",
+    "all unresolved dependencies are reported together before execution"
   ],
-  "not_yet_validated": [
-    "product-level Aqua-equivalent accuracy",
-    "decision-grade English WER",
-    "decision-grade Japanese CER",
-    "technical key-term accuracy",
-    "100+ warm-run streaming latency percentiles",
-    "dictionary recall and false-bias ACs",
-    "context harm AC",
-    "semantic integrity AC",
-    "paired Japanese Aqua non-inferiority"
+  "automated_v4_stages": [
+    "plan self-test",
+    "validation contract generation",
+    "fixture contract test",
+    "public fixture fetch/reference verification",
+    "offline dependency bootstrap",
+    "model identity freeze",
+    "all-at-once dependency inventory",
+    "Qwen offline inference",
+    "dictionary/context paired runs",
+    "explicit semantic integrity run",
+    "streaming backend bootstrap",
+    "100-run real-time-paced streaming latency",
+    "fail-closed hard-AC evaluation",
+    "run-scoped evidence archive",
+    "final disposition"
   ],
-  "critical_findings": [
-    "NOT_RUN semantic/ablation evidence can still allow PASS in current runner",
-    "external evaluator omits several hard ACs",
-    "technical accuracy incorrectly tests the full reference sentence rather than declared key terms",
-    "WER/CER normalization is insufficient",
-    "fixture count is too small for Aqua/OpenASR-level claims",
-    "first-partial latency is not real-time paced",
-    "latency percentiles are derived from too few runs",
-    "model revision/hash is not pinned"
+  "external_product_pass_dependencies": [
+    "official pinned OpenASR English short-form result for the frozen Qwen revision",
+    "paired Japanese Aqua results on the same frozen fixture IDs with Aqua version/date"
   ],
-  "current_conclusion": "Infrastructure validation PASS only. Product validation is OPEN and prior product-level PASS interpretation is withdrawn.",
-  "closure_rule": "Product PASS prohibited until every hard AC has measured evidence and all audit findings are resolved fail-closed."
+  "current_conclusion": "The workflow is now structured for one-pass execution without ad-hoc repair. Missing external evidence produces machine-readable BLOCKED, while independent Qwen evidence continues automatically.",
+  "closure_rule": "Product PASS only when every v4 hard AC is explicitly PASS; any FAIL, BLOCKED, missing, or NOT_RUN prohibits closure."
 }
