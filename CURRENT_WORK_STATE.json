@@ -1,77 +1,36 @@
 {
-  "work_id": "TCC-QWEN-ASR-007",
-  "state": "SPLIT_RUNTIME_TCC_READY_EXECUTION_ENV_BLOCKED",
+  "work_id": "TCC-QWEN-ASR-008",
+  "state": "VALIDATION_AUDIT_INVALIDATED_PRODUCT_PASS",
   "primary_model": "Qwen/Qwen3-ASR-1.7B",
   "authoritative_plan": "TCC_EXECUTION_PLAN_v3.json",
-  "entrypoint": "run_tcc.sh",
-  "orchestrator": "tcc_orchestrator.py",
-  "executor": "tcc_runner.py",
-  "split_runtime": {
-    "inference_only_runner": "run_qwen_inference_only.py",
-    "external_result_evaluator": "evaluate_external_results.py",
-    "contract_test": "test_external_results.py",
-    "purpose": "Allow Qwen inference to run on any capable external runtime while frozen fixture scoring, AC evaluation, and fail-closed TCC disposition remain reproducible elsewhere.",
-    "result_files": [
-      "offline_predictions.jsonl",
-      "streaming_predictions.jsonl"
-    ],
-    "merge_key": "fixture id + mode",
-    "policy": "No AC threshold or fixture mutation when importing external results."
-  },
-  "completed": [
-    "executable TCC state machine v3 created",
-    "all major branches and retry budgets fixed before execution",
-    "public fixture acquisition and transcript verification integrated",
-    "JECS unavailable path made explicitly partial and nonfatal for independent EN/JA suites",
-    "dependency bootstrap integrated",
-    "offline suite continues when streaming backend is blocked",
-    "run-scoped evidence archival added",
-    "mandatory evidence completeness enforced from v3 plan",
-    "plan, fixture, and orchestrator invariant tests passed in GPT sandbox",
-    "Hugging Face Jobs execution attempted and classified BLOCKED_ENV due to 402 payment requirement",
-    "GPT sandbox network execution attempted and classified BLOCKED_ENV due to outbound DNS restriction",
-    "Qwen inference-only runner added for external capable runtimes",
-    "external result evaluator added with frozen WER/CER/technical/latency AC scoring",
-    "offline and streaming results can be merged by fixture id + mode",
-    "external result contract self-test passed with synthetic EN/JA/technical fixtures",
-    "Japanese Aqua paired-comparison AC remains fail-closed when Aqua evidence is absent"
+  "audit": "VALIDATION_AUDIT_2026-10-03.json",
+  "validated_so_far": [
+    "TCC state-machine structure",
+    "fixture contract checks",
+    "fail-closed branch mechanics in selected paths",
+    "external-result merge mechanics on synthetic fixtures"
   ],
-  "branch_policy": {
-    "plan_invalid": "BLOCKED_PLAN",
-    "fixture_contract_invalid": "BLOCKED_FIXTURE_CONTRACT",
-    "public_fixture_failure": "BLOCKED_FIXTURE",
-    "jecs_unavailable": "PARTIAL_CODE_SWITCH_BLOCKED while independent suites continue",
-    "offline_dependency_failure": "BLOCKED_PACKAGE",
-    "streaming_backend_unavailable": "PARTIAL_STREAMING_BLOCKED while offline suites continue",
-    "model_load_failure": "BLOCKED_MODEL",
-    "accuracy_failure": "REFRAME_ACCURACY after predefined ablation only",
-    "latency_failure": "REFRAME_LATENCY after stage attribution",
-    "context_harm": "REFRAME_CONTEXT after one paired rerun",
-    "semantic_mutation": "REJECT_SEMANTIC",
-    "evidence_missing": "BLOCKED_EVIDENCE",
-    "external_results_incomplete": "PARTIAL_EXTERNAL_EVIDENCE_BLOCKED",
-    "all_hard_AC_pass": "PASS"
-  },
-  "execution_attempts": [
-    {
-      "environment": "Hugging Face Jobs",
-      "result": "BLOCKED_ENV",
-      "detail": "402 Payment Required before job execution"
-    },
-    {
-      "environment": "GPT sandbox/container",
-      "result": "BLOCKED_ENV",
-      "detail": "external DNS unavailable"
-    }
+  "not_yet_validated": [
+    "product-level Aqua-equivalent accuracy",
+    "decision-grade English WER",
+    "decision-grade Japanese CER",
+    "technical key-term accuracy",
+    "100+ warm-run streaming latency percentiles",
+    "dictionary recall and false-bias ACs",
+    "context harm AC",
+    "semantic integrity AC",
+    "paired Japanese Aqua non-inferiority"
   ],
-  "manual_intervention_policy": "No ad-hoc threshold, fixture, model, or parameter edits during a run. Any policy change requires a new plan revision before the next run.",
-  "execution": {
-    "full_runtime": "./run_tcc.sh",
-    "external_offline": "python run_qwen_inference_only.py --out offline_predictions.jsonl",
-    "external_streaming": "python run_qwen_inference_only.py --streaming --out streaming_predictions.jsonl",
-    "evaluate_external": "python evaluate_external_results.py --results offline_predictions.jsonl streaming_predictions.jsonl"
-  },
-  "closure_rule": "CLOSED only on PASS with complete mandatory evidence.",
-  "runtime_policy": "Python >=3.9; offline auto-bootstrap; streaming requires vLLM-capable Linux/CUDA runtime.",
-  "next_executable_condition": "Run only Qwen inference in any capable runtime, then feed the produced JSONL files to the frozen evaluator; no code or AC changes required."
+  "critical_findings": [
+    "NOT_RUN semantic/ablation evidence can still allow PASS in current runner",
+    "external evaluator omits several hard ACs",
+    "technical accuracy incorrectly tests the full reference sentence rather than declared key terms",
+    "WER/CER normalization is insufficient",
+    "fixture count is too small for Aqua/OpenASR-level claims",
+    "first-partial latency is not real-time paced",
+    "latency percentiles are derived from too few runs",
+    "model revision/hash is not pinned"
+  ],
+  "current_conclusion": "Infrastructure validation PASS only. Product validation is OPEN and prior product-level PASS interpretation is withdrawn.",
+  "closure_rule": "Product PASS prohibited until every hard AC has measured evidence and all audit findings are resolved fail-closed."
 }
