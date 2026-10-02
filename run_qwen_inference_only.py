@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
+MODEL_REVISION = "7278e1e70fe206f11671096ffdd38061171dd6e5"
 
 
 def language_arg(lang: str):
@@ -37,6 +38,7 @@ def main() -> int:
 
         model = Qwen3ASRModel.LLM(
             model=MODEL_ID,
+            revision=MODEL_REVISION,
             gpu_memory_utilization=0.8,
             max_new_tokens=32,
         )
@@ -78,6 +80,8 @@ def main() -> int:
                 "first_partial_ms": first_partial_ms,
                 "release_to_final_ms": release_to_final_ms,
                 "mode": "streaming",
+                "model_id": MODEL_ID,
+                "model_revision": MODEL_REVISION,
             })
     else:
         import torch
@@ -86,6 +90,7 @@ def main() -> int:
         dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
         model = Qwen3ASRModel.from_pretrained(
             MODEL_ID,
+            revision=MODEL_REVISION,
             dtype=dtype,
             device_map=device,
             max_inference_batch_size=1,
@@ -108,13 +113,15 @@ def main() -> int:
                 "hypothesis": str(out[0].text).strip(),
                 "inference_s": elapsed,
                 "mode": "offline",
+                "model_id": MODEL_ID,
+                "model_revision": MODEL_REVISION,
             })
 
     out_path = Path(args.out)
     with out_path.open("w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    print(json.dumps({"rows": len(rows), "out": str(out_path), "streaming": args.streaming}, ensure_ascii=False))
+    print(json.dumps({"rows": len(rows), "out": str(out_path), "streaming": args.streaming, "model_revision": MODEL_REVISION}, ensure_ascii=False))
     return 0
 
 
