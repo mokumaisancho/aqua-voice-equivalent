@@ -12,7 +12,7 @@ ARTIFACTS = {
     "D00_audit_baseline": ["VALIDATION_AUDIT_2026-10-03.json"],
     "D10_model_identity": ["evidence/model_identity.json"],
     "D20_scorer_contract": ["evidence/scorer_contract.json"],
-    "D30_fixture_contract": ["fixtures/manifest.json"],
+    "D30_fixture_contract": ["fixtures/manifest.json", "evidence/openasr_protocol.json"],
     "D40_technical_term_contract": ["fixtures/technical_term_annotations.json"],
     "D50_aqua_pair_contract": ["evidence/aqua_pair_manifest.json"],
     "D60_context_dictionary_contract": ["fixtures/context_dictionary_manifest.json"],
@@ -67,30 +67,14 @@ def main() -> int:
         upstream_blocked = [x for x in deps if nodes.get(x, {}).get("ready") is False]
         artifact_blocked = [x for x in artifacts if x["state"] != "PRESENT"]
         ready = not upstream_blocked and not artifact_blocked
-        nodes[dep_id] = {
-            "ready": bool(ready),
-            "depends_on": deps,
-            "upstream_blocked": upstream_blocked,
-            "artifacts": artifacts,
-        }
+        nodes[dep_id] = {"ready": bool(ready), "depends_on": deps, "upstream_blocked": upstream_blocked, "artifacts": artifacts}
 
     execution_prereqs = plan["execution_prerequisites"]
     product_prereqs = plan["product_pass_prerequisites"]
     execution_blockers = [x for x in execution_prereqs if not nodes.get(x, {}).get("ready")]
 
-    # D100 is a derived execution-readiness node, not an independent artifact.
-    nodes["D100_execution_ready"] = {
-        "ready": not execution_blockers,
-        "depends_on": execution_prereqs,
-        "upstream_blocked": execution_blockers,
-        "artifacts": [],
-    }
-
-    product_blockers = []
-    for dep in product_prereqs:
-        if not nodes.get(dep, {}).get("ready"):
-            product_blockers.append(dep)
-
+    nodes["D100_execution_ready"] = {"ready": not execution_blockers, "depends_on": execution_prereqs, "upstream_blocked": execution_blockers, "artifacts": []}
+    product_blockers = [x for x in product_prereqs if not nodes.get(x, {}).get("ready")]
     unresolved = [x for x, v in nodes.items() if not v.get("ready")]
     execution_ready = not execution_blockers
     product_pass_ready = execution_ready and not product_blockers
@@ -104,18 +88,11 @@ def main() -> int:
         "product_pass_blockers": product_blockers,
         "unresolved_dependencies": unresolved,
         "nodes": nodes,
-        "rule": "All blockers are reported in one pass. Qwen execution may proceed when execution_prerequisites are ready; product PASS additionally requires product_pass_prerequisites.",
+        "rule": "All blockers are reported in one pass. Qwen execution may proceed when execution_prerequisites are ready; product PASS additionally requires product_pass_prerequisites."
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({
-        "status": snapshot["status"],
-        "execution_ready": execution_ready,
-        "product_pass_ready": product_pass_ready,
-        "execution_blockers": execution_blockers,
-        "product_pass_blockers": product_blockers,
-        "snapshot": str(OUT.relative_to(ROOT)),
-    }, ensure_ascii=False))
+    print(json.dumps({"status": snapshot["status"], "execution_ready": execution_ready, "product_pass_ready": product_pass_ready, "execution_blockers": execution_blockers, "product_pass_blockers": product_blockers, "snapshot": str(OUT.relative_to(ROOT))}, ensure_ascii=False))
     return 0 if execution_ready else 2
 
 
