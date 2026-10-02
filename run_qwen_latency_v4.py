@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
+MODEL_REVISION = "7278e1e70fe206f11671096ffdd38061171dd6e5"
 
 
 def load_audio(path: Path):
@@ -36,19 +37,12 @@ def one_run(model, wav, chunk_ms=250):
         end = min(pos + step, len(wav))
         seg = wav[pos:end]
         pos = end
-
-        # The chunk cannot exist before its final sample has arrived.
         due = t_start + (pos / 16000.0)
         remain = due - time.perf_counter()
         if remain > 0:
             time.sleep(remain)
-
-        # Microphone-release equivalent is the arrival time of the last frame,
-        # before processing that last chunk. release->final therefore includes
-        # final-chunk inference plus finalization.
         if pos >= len(wav):
             release_ts = time.perf_counter()
-
         model.streaming_transcribe(seg, state)
         if first is None and getattr(state, "text", "").strip():
             first = (time.perf_counter() - t_start) * 1000.0
@@ -76,7 +70,12 @@ def main():
     if not fixtures:
         raise SystemExit("no general fixtures")
 
-    model = Qwen3ASRModel.LLM(model=MODEL_ID, gpu_memory_utilization=0.8, max_new_tokens=32)
+    model = Qwen3ASRModel.LLM(
+        model=MODEL_ID,
+        revision=MODEL_REVISION,
+        gpu_memory_utilization=0.8,
+        max_new_tokens=32,
+    )
     cache = {x["id"]: load_audio(Path(args.manifest).parent / x["audio"]) for x in fixtures}
 
     for i in range(args.warmup):
@@ -99,10 +98,12 @@ def main():
                 "first_partial_ms": first,
                 "release_to_final_ms": final,
                 "final_text": text,
+                "model_id": MODEL_ID,
+                "model_revision": MODEL_REVISION,
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-    print(json.dumps({"status": "READY", "warmup": args.warmup, "measured_runs": args.runs, "out": str(out)}, ensure_ascii=False))
+    print(json.dumps({"status": "READY", "warmup": args.warmup, "measured_runs": args.runs, "out": str(out), "model_revision": MODEL_REVISION}, ensure_ascii=False))
     return 0
 
 
