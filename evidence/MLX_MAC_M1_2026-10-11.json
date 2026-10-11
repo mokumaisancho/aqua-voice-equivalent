@@ -1,0 +1,40 @@
+{
+  "status": "DEVELOPMENT_EVIDENCE_ONLY_NOT_HARD_AC_PASS",
+  "machine": {"cpu": "Apple M1", "ram_gib": 16, "macos": "14.4.1"},
+  "model_id": "moona3k/mlx-qwen3-asr-1.7b-4bit",
+  "model_revision": "b2315a2537123353af98e37fc93eae078f1b7cf3",
+  "weights_sha256": "5c9177b6fc67851d3c1af234ab8bd9d240faf07d08499bf3e751257d1ec88c5f",
+  "package": "mlx-qwen3-asr==0.4.4",
+  "samples": [
+    {
+      "language": "English", "reference": "Guidewire ClaimCenter manages insurance claims and exposures.",
+      "with_domain_hint_transcript": "Guidewire ClaimCenter manages insurance claims and exposures.",
+      "without_domain_hint_transcript": "Caduayer Claims Center manages insurance claims and exposures.",
+      "first_inference_ms": 595.47, "warm_inference_ms": [502.30, 479.23, 504.99],
+      "audio_sec": 3.762
+    },
+    {
+      "language": "Japanese", "reference": "保険金請求システムの導入を進めています。",
+      "with_domain_hint_transcript": "保険金請求システムの導入を進めています。",
+      "first_inference_ms": 585.09, "audio_sec": 3.692
+    },
+    {
+      "language": "English", "reference": "Please check the calendar for tomorrow.",
+      "with_domain_hint_transcript": "Please check the calendar for tomorrow.",
+      "inference_ms": 553.04
+    },
+    {
+      "language": "Japanese", "reference": "今日は天気が良いので散歩します。",
+      "with_domain_hint_transcript": "今日は天気が良いので散歩します。",
+      "inference_ms": 533.53
+    }
+  ],
+  "sample_provenance": "macOS say voice synthesis / 16 kHz mono PCM WAV",
+  "validity_warnings": [
+    "Synthesized speech only; no real-human speech dataset",
+    "Model inference time is not user-perceived key-release-to-cursor time",
+    "No independent 4-bit vs unquantized head-to-head",
+    "Not the frozen Qwen3-ASR original model revision or its hard-AC matrix",
+    "Sample size statistically insufficient for accuracy or latency acceptance"
+  ]
+}
